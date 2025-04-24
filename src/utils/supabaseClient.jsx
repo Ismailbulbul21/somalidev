@@ -586,3 +586,636 @@ export const createSpecialization = async (specialization) => {
         };
     }
 };
+
+// Community Posts Functions
+
+// Get all posts with pagination, filtering and sorting
+export const getPosts = async ({
+  page = 1,
+  pageSize = 10,
+  category = null,
+  postType = null,
+  search = null,
+  sortBy = 'created_at',
+  sortOrder = 'desc',
+}) => {
+  try {
+    console.log('Fetching posts with params:', { page, pageSize, category, postType, search, sortBy, sortOrder });
+    
+    // Calculate pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    
+    // Start with the base query
+    let query = supabase
+      .from('post_feed')
+      .select('*', { count: 'exact' });
+    
+    // Apply filters
+    if (category) {
+      query = query.eq('category_id', category);
+    }
+    
+    if (postType) {
+      query = query.eq('post_type', postType);
+    }
+    
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
+    }
+    
+    // Apply sorting
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+    
+    // Apply pagination
+    query = query.range(from, to);
+    
+    // Execute query
+    const { data, error, count } = await query;
+    
+    if (error) {
+      console.error('Error fetching posts:', error);
+      throw error;
+    }
+    
+    return {
+      data: data || [],
+      count: count || 0,
+      page,
+      pageSize,
+      totalPages: Math.ceil((count || 0) / pageSize)
+    };
+  } catch (error) {
+    console.error('Exception in getPosts:', error);
+    return { data: [], count: 0, page, pageSize, totalPages: 0 };
+  }
+};
+
+// Get a single post by ID with all associated data
+export const getPost = async (postId) => {
+  try {
+    if (!postId) throw new Error('Post ID is required');
+    
+    // Increment view count
+    await supabase.rpc('increment_post_views', { post_id: postId });
+    
+    // Get the post details
+    const { data, error } = await supabase
+      .from('post_feed')
+      .select('*')
+      .eq('id', postId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching post:', error);
+      throw error;
+    }
+    
+    // Get comments for the post
+    const { data: comments, error: commentsError } = await supabase
+      .from('comments')
+      .select(`
+        *,
+        profiles!comments_profile_id_fkey(id, full_name, avatar_url, title),
+        comment_likes(count)
+      `)
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+    
+    if (commentsError) {
+      console.error('Error fetching comments:', commentsError);
+    }
+    
+    return {
+      ...data,
+      comments: comments || []
+    };
+  } catch (error) {
+    console.error('Exception in getPost:', error);
+    throw error;
+  }
+};
+
+// Create a new post
+export const createPost = async (post) => {
+  try {
+    // Validate required fields
+    if (!post.title) throw new Error('Post title is required');
+    if (!post.content) throw new Error('Post content is required');
+    if (!post.post_type) throw new Error('Post type is required');
+    
+    // Insert the post
+    const { data, error } = await supabase
+      .from('posts')
+      .insert([post])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating post:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Exception in createPost:', error);
+    throw error;
+  }
+};
+
+// Update an existing post
+export const updatePost = async (postId, updates) => {
+  try {
+    if (!postId) throw new Error('Post ID is required');
+    
+    // Update the post
+    const { data, error } = await supabase
+      .from('posts')
+      .update(updates)
+      .eq('id', postId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating post:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Exception in updatePost:', error);
+    throw error;
+  }
+};
+
+// Delete a post
+export const deletePost = async (postId) => {
+  try {
+    if (!postId) throw new Error('Post ID is required');
+    
+    // Delete the post (cascade will handle related records)
+    const { error } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', postId);
+    
+    if (error) {
+      console.error('Error deleting post:', error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Exception in deletePost:', error);
+    throw error;
+  }
+};
+
+// Add a comment to a post
+export const addComment = async (comment) => {
+  try {
+    if (!comment.post_id) throw new Error('Post ID is required');
+    if (!comment.content) throw new Error('Comment content is required');
+    
+    // Insert the comment
+    const { data, error } = await supabase
+      .from('comments')
+      .insert([comment])
+      .select(`
+        *,
+        profiles!comments_profile_id_fkey(id, full_name, avatar_url, title)
+      `)
+      .single();
+    
+    if (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Exception in addComment:', error);
+    throw error;
+  }
+};
+
+// Update a comment
+export const updateComment = async (commentId, content) => {
+  try {
+    if (!commentId) throw new Error('Comment ID is required');
+    if (!content) throw new Error('Comment content is required');
+    
+    // Update the comment
+    const { data, error } = await supabase
+      .from('comments')
+      .update({ content })
+      .eq('id', commentId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating comment:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Exception in updateComment:', error);
+    throw error;
+  }
+};
+
+// Delete a comment
+export const deleteComment = async (commentId) => {
+  try {
+    if (!commentId) throw new Error('Comment ID is required');
+    
+    // Delete the comment
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId);
+    
+    if (error) {
+      console.error('Error deleting comment:', error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Exception in deleteComment:', error);
+    throw error;
+  }
+};
+
+// Toggle like on a post
+export const togglePostLike = async (postId) => {
+  try {
+    if (!postId) throw new Error('Post ID is required');
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('You must be logged in to like posts');
+    
+    // Check if user already liked the post
+    const { data: existingLike, error: checkError } = await supabase
+      .from('post_likes')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('profile_id', user.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking post like:', checkError);
+      throw checkError;
+    }
+    
+    if (existingLike) {
+      // Unlike the post
+      const { error: unlikeError } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('id', existingLike.id);
+      
+      if (unlikeError) {
+        console.error('Error unliking post:', unlikeError);
+        throw unlikeError;
+      }
+      
+      return { liked: false };
+    } else {
+      // Like the post
+      const { error: likeError } = await supabase
+        .from('post_likes')
+        .insert([{
+          post_id: postId,
+          profile_id: user.id
+        }]);
+      
+      if (likeError) {
+        console.error('Error liking post:', likeError);
+        throw likeError;
+      }
+      
+      return { liked: true };
+    }
+  } catch (error) {
+    console.error('Exception in togglePostLike:', error);
+    throw error;
+  }
+};
+
+// Toggle save on a post
+export const togglePostSave = async (postId) => {
+  try {
+    if (!postId) throw new Error('Post ID is required');
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('You must be logged in to save posts');
+    
+    // Check if user already saved the post
+    const { data: existingSave, error: checkError } = await supabase
+      .from('post_saves')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('profile_id', user.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking post save:', checkError);
+      throw checkError;
+    }
+    
+    if (existingSave) {
+      // Unsave the post
+      const { error: unsaveError } = await supabase
+        .from('post_saves')
+        .delete()
+        .eq('id', existingSave.id);
+      
+      if (unsaveError) {
+        console.error('Error unsaving post:', unsaveError);
+        throw unsaveError;
+      }
+      
+      return { saved: false };
+    } else {
+      // Save the post
+      const { error: saveError } = await supabase
+        .from('post_saves')
+        .insert([{
+          post_id: postId,
+          profile_id: user.id
+        }]);
+      
+      if (saveError) {
+        console.error('Error saving post:', saveError);
+        throw saveError;
+      }
+      
+      return { saved: true };
+    }
+  } catch (error) {
+    console.error('Exception in togglePostSave:', error);
+    throw error;
+  }
+};
+
+// Upload media for a post
+export const addPostMedia = async (postId, file, mediaType = 'image') => {
+  try {
+    if (!postId) throw new Error('Post ID is required');
+    if (!file) throw new Error('File is required');
+    
+    // Upload the file to storage
+    const filePath = `post_media/${postId}/${Date.now()}_${file.name}`;
+    const { data: uploadData, error: uploadError } = await uploadImage('post-media', filePath, file);
+    
+    if (uploadError) {
+      console.error('Error uploading post media:', uploadError);
+      throw uploadError;
+    }
+    
+    // Get the public URL
+    const url = getImageUrl('post-media', filePath);
+    
+    // Add entry to post_media table
+    const { data, error } = await supabase
+      .from('post_media')
+      .insert([{
+        post_id: postId,
+        url,
+        media_type: mediaType
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding post media record:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Exception in addPostMedia:', error);
+    throw error;
+  }
+};
+
+// Get saved posts with pagination
+export const getSavedPosts = async (page = 1, pageSize = 10) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('You must be logged in to view saved posts');
+    
+    const offset = (page - 1) * pageSize;
+    
+    // Get the saved post IDs first
+    const { data: savedPostIds, error: savedError } = await supabase
+      .from('post_saves')
+      .select('post_id')
+      .eq('profile_id', user.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    
+    if (savedError) {
+      console.error('Error fetching saved post IDs:', savedError);
+      throw savedError;
+    }
+    
+    if (!savedPostIds.length) return { data: [], count: 0 };
+    
+    // Get the actual posts
+    const postIds = savedPostIds.map(item => item.post_id);
+    const { data: posts, error: postsError, count } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        profiles:profile_id(id, full_name, avatar_url),
+        comments:comments(count),
+        likes:post_likes(count)
+      `, { count: 'exact' })
+      .in('id', postIds)
+      .order('created_at', { ascending: false });
+    
+    if (postsError) {
+      console.error('Error fetching saved posts:', postsError);
+      throw postsError;
+    }
+    
+    return { data: posts, count };
+  } catch (error) {
+    console.error('Exception in getSavedPosts:', error);
+    throw error;
+  }
+};
+
+// Get posts by a specific user
+export const getUserPosts = async (userId, page = 1, pageSize = 10) => {
+  try {
+    if (!userId) {
+      // If no userId provided, use current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User ID is required or you must be logged in');
+      userId = user.id;
+    }
+    
+    const offset = (page - 1) * pageSize;
+    
+    const { data, error, count } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        profiles:profile_id(id, full_name, avatar_url),
+        comments:comments(count),
+        likes:post_likes(count)
+      `, { count: 'exact' })
+      .eq('profile_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    
+    if (error) {
+      console.error('Error fetching user posts:', error);
+      throw error;
+    }
+    
+    return { data, count };
+  } catch (error) {
+    console.error('Exception in getUserPosts:', error);
+    throw error;
+  }
+};
+
+// Follow/unfollow a user
+export const toggleUserFollow = async (followingId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('You must be logged in to follow users');
+    if (!followingId) throw new Error('User ID to follow is required');
+    if (user.id === followingId) throw new Error('You cannot follow yourself');
+    
+    // Check if already following
+    const { data: existingFollow, error: checkError } = await supabase
+      .from('user_follows')
+      .select('id')
+      .eq('follower_id', user.id)
+      .eq('following_id', followingId)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking follow status:', checkError);
+      throw checkError;
+    }
+    
+    if (existingFollow) {
+      // Unfollow
+      const { error: unfollowError } = await supabase
+        .from('user_follows')
+        .delete()
+        .eq('id', existingFollow.id);
+      
+      if (unfollowError) {
+        console.error('Error unfollowing user:', unfollowError);
+        throw unfollowError;
+      }
+      
+      return { following: false };
+    } else {
+      // Follow
+      const { error: followError } = await supabase
+        .from('user_follows')
+        .insert([{
+          follower_id: user.id,
+          following_id: followingId
+        }]);
+      
+      if (followError) {
+        console.error('Error following user:', followError);
+        throw followError;
+      }
+      
+      return { following: true };
+    }
+  } catch (error) {
+    console.error('Exception in toggleUserFollow:', error);
+    throw error;
+  }
+};
+
+// Check if current user is following another user
+export const checkIfFollowing = async (followingId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !followingId) return false;
+    
+    const { data, error } = await supabase
+      .from('user_follows')
+      .select('id')
+      .eq('follower_id', user.id)
+      .eq('following_id', followingId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error checking follow status:', error);
+      return false;
+    }
+    
+    return Boolean(data);
+  } catch (error) {
+    console.error('Exception in checkIfFollowing:', error);
+    return false;
+  }
+};
+
+// Get user's followers
+export const getUserFollowers = async (userId) => {
+  try {
+    if (!userId) throw new Error('User ID is required');
+    
+    const { data, error } = await supabase
+      .from('user_follows')
+      .select(`
+        id,
+        created_at,
+        followers:follower_id(id, full_name, avatar_url, title)
+      `)
+      .eq('following_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching user followers:', error);
+      throw error;
+    }
+    
+    return data?.map(item => item.followers) || [];
+  } catch (error) {
+    console.error('Exception in getUserFollowers:', error);
+    return [];
+  }
+};
+
+// Get users that a user is following
+export const getUserFollowing = async (userId) => {
+  try {
+    if (!userId) throw new Error('User ID is required');
+    
+    const { data, error } = await supabase
+      .from('user_follows')
+      .select(`
+        id,
+        created_at,
+        following:following_id(id, full_name, avatar_url, title)
+      `)
+      .eq('follower_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching user following:', error);
+      throw error;
+    }
+    
+    return data?.map(item => item.following) || [];
+  } catch (error) {
+    console.error('Exception in getUserFollowing:', error);
+    return [];
+  }
+};

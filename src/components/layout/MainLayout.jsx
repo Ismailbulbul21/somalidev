@@ -74,6 +74,7 @@ const MainLayout = () => {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Developers', path: '/developers' },
+    { name: 'Community', path: '/community' },
   ];
   
   // Auth links

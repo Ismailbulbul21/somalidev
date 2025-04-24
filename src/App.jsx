@@ -4,6 +4,7 @@ import { AuthProvider } from './utils/AuthContext'
 import { MessagesProvider } from './utils/MessagesContext'
 import MainLayout from './components/layout/MainLayout'
 import './App.css'
+import Community from './pages/Community'
 
 // Pages
 import Home from './pages/Home'
@@ -17,6 +18,8 @@ import Messages from './pages/Messages'
 import NotFound from './pages/NotFound'
 import AuthCallback from './pages/AuthCallback'
 import CompleteProfile from './pages/CompleteProfile'
+import PostDetail from './pages/PostDetail'
+import Companies from './pages/Companies'
 
 const App = () => {
   return (
@@ -36,9 +39,13 @@ const App = () => {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="messages/:id" element={<Messages />} />
               <Route path="messages" element={<Messages />} />
+              <Route path="community" element={<Community />} />
+              <Route path="posts/:id" element={<PostDetail />} />
               <Route path="signin" element={<SignIn />} />
               <Route path="signup" element={<SignUp />} />
               <Route path="404" element={<NotFound />} />
+              <Route path="companies" element={<Companies />} />
+              <Route path="community/category/:categoryId" element={<Community />} />
               <Route path="*" element={<Navigate to="/404" replace />} />
             </Route>
           </Routes>
