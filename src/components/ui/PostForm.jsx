@@ -45,6 +45,15 @@ const PostForm = ({
     fetchCategories();
   }, [post?.category_id, preSelectedCategory]);
 
+  // Auto-transition to step 2 when preSelectedCategory is provided
+  useEffect(() => {
+    // Only proceed to step 2 if we have a valid categoryId from preSelectedCategory
+    // and we're not already in step 2 (to prevent unnecessary re-renders)
+    if (preSelectedCategory && categoryId && step === 1 && !isLoading) {
+      setStep(2);
+    }
+  }, [preSelectedCategory, categoryId, step, isLoading]);
+
   // Handle category selection and proceed to next step
   const handleCategorySelect = (id) => {
     setCategoryId(id);
