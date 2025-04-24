@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../utils/AuthContext';
 import { updateComment, deleteComment } from '../../utils/supabaseClient.jsx';
+import defaultAvatar from '../../assets/images/default-avatar.svg';
 
 const CommentItem = ({ 
   comment, 
@@ -60,7 +61,7 @@ const CommentItem = ({
       <div className="flex items-start">
         <Link to={`/profile/${comment.profiles?.id}`} className="flex-shrink-0">
           <img 
-            src={comment.profiles?.avatar_url || '/default-avatar.png'} 
+            src={comment.profiles?.avatar_url || defaultAvatar} 
             alt={comment.profiles?.full_name || 'User'} 
             className="w-10 h-10 rounded-full mr-3 object-cover"
           />

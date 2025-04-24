@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../utils/AuthContext';
 import { togglePostLike, togglePostSave } from '../../utils/supabaseClient.jsx';
+import defaultAvatar from '../../assets/images/default-avatar.svg';
 
 const PostCard = ({ 
   post, 
@@ -99,8 +100,8 @@ const PostCard = ({
               onClick={(e) => e.stopPropagation()}
             >
               <img 
-                src={post.profile?.avatar_url || '/default-avatar.png'} 
-                alt={post.profile?.full_name || 'User'} 
+                src={post.author_avatar || post.profile?.avatar_url || defaultAvatar} 
+                alt={post.author_name || post.profile?.full_name || 'User'} 
                 className="w-10 h-10 rounded-full mr-3 object-cover"
               />
               <div>
@@ -130,10 +131,10 @@ const PostCard = ({
           </div>
           
           {/* Post Media */}
-          {post.media && post.media.length > 0 && (
+          {((post.media && post.media.length > 0) || (post.images && post.images.length > 0)) && (
             <div className="mb-4">
               <img 
-                src={post.media[0].url} 
+                src={(post.media && post.media.length > 0) ? post.media[0].url : post.images[0]} 
                 alt="Post media" 
                 className="w-full h-48 object-cover rounded-md"
               />

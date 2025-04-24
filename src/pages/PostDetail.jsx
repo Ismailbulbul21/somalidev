@@ -11,6 +11,7 @@ import {
 import CommentForm from '../components/ui/CommentForm';
 import CommentItem from '../components/ui/CommentItem';
 import PostForm from '../components/ui/PostForm';
+import defaultAvatar from '../assets/images/default-avatar.svg';
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -212,7 +213,7 @@ const PostDetail = () => {
               <div className="flex items-center mb-6">
                 <Link to={`/profile/${post.profile?.id}`} className="flex items-center">
                   <img 
-                    src={post.profile?.avatar_url || '/default-avatar.png'} 
+                    src={post.profile?.avatar_url || defaultAvatar} 
                     alt={post.profile?.full_name || 'User'} 
                     className="w-12 h-12 rounded-full mr-4 object-cover"
                   />
@@ -238,10 +239,10 @@ const PostDetail = () => {
               </div>
               
               {/* Post Media */}
-              {post.media && post.media.length > 0 && (
+              {((post.media && post.media.length > 0) || (post.images && post.images.length > 0)) && (
                 <div className="mb-6">
                   <img 
-                    src={post.media[0].url} 
+                    src={(post.media && post.media.length > 0) ? post.media[0].url : post.images[0]} 
                     alt="Post media" 
                     className="rounded-lg max-h-96 w-auto mx-auto"
                   />

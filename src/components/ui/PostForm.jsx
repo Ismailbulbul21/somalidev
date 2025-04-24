@@ -138,9 +138,15 @@ const PostForm = ({
         result = await createPost(postData);
       }
       
-      // Upload media if selected
+      // Upload media if selected - make this optional
       if (media && result) {
-        await addPostMedia(result.id, media);
+        try {
+          await addPostMedia(result.id, media);
+        } catch (mediaError) {
+          console.error('Error uploading media, but post was created:', mediaError);
+          // Continue despite media upload error
+          // Just show a message in the console but don't block post creation
+        }
       }
       
       onSuccess(result);
