@@ -211,14 +211,14 @@ const PostDetail = () => {
             {/* Post Header */}
             <div className="p-6">
               <div className="flex items-center mb-6">
-                <Link to={`/profile/${post.profile?.id}`} className="flex items-center">
+                <Link to={`/profile/${post.profile_id}`} className="flex items-center">
                   <img 
-                    src={post.profile?.avatar_url || defaultAvatar} 
-                    alt={post.profile?.full_name || 'User'} 
+                    src={post.author_avatar || post.profile?.avatar_url || defaultAvatar} 
+                    alt={post.author_name || post.profile?.full_name || 'User'} 
                     className="w-12 h-12 rounded-full mr-4 object-cover"
                   />
                   <div>
-                    <h3 className="text-white font-medium">{post.profile?.full_name || 'Anonymous'}</h3>
+                    <h3 className="text-white font-medium">{post.author_name || post.profile?.full_name || 'Anonymous'}</h3>
                     <p className="text-gray-400 text-sm">{formatDate(post.created_at)}</p>
                   </div>
                 </Link>

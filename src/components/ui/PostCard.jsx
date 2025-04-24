@@ -95,7 +95,7 @@ const PostCard = ({
         <div className="p-4">
           <div className="flex items-center mb-3">
             <Link 
-              to={`/profile/${post.profile?.id}`} 
+              to={`/profile/${post.profile_id}`} 
               className="flex items-center"
               onClick={(e) => e.stopPropagation()}
             >
@@ -105,7 +105,7 @@ const PostCard = ({
                 className="w-10 h-10 rounded-full mr-3 object-cover"
               />
               <div>
-                <h3 className="text-white font-medium">{post.profile?.full_name || 'Anonymous'}</h3>
+                <h3 className="text-white font-medium">{post.author_name || post.profile?.full_name || 'Anonymous'}</h3>
                 <p className="text-gray-400 text-sm">{formatDate(post.created_at)}</p>
               </div>
             </Link>
