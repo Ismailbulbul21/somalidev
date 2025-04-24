@@ -68,30 +68,6 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const signInWithGoogle = async () => {
-    setLoading(true);
-    
-    const redirectUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/callback`;
-    console.log('Google Sign-in Redirect URL:', redirectUrl);
-    
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl
-      }
-    });
-    
-    if (error) {
-      console.error('Google Sign-in Error:', error);
-      setLoading(false);
-      throw error;
-    }
-    
-    console.log('Google Sign-in Success:', data);
-    setLoading(false);
-    return data;
-  };
-
   const signOut = async () => {
     setLoading(true);
     
@@ -118,7 +94,6 @@ export function AuthProvider({ children }) {
     loading,
     signUp,
     signIn,
-    signInWithGoogle,
     signOut
   };
 
