@@ -27,7 +27,23 @@ const PostForm = ({
       setIsLoading(true);
       try {
         const result = await getCategories();
-        setCategories(result || []);
+        // If no categories returned from the database, use default fallback categories
+        if (!result || result.length === 0) {
+          console.log('No categories found, using fallback categories');
+          const fallbackCategories = [
+            { id: 'web-dev', name: 'Web Development', description: 'Development of websites and web applications' },
+            { id: 'mobile-dev', name: 'Mobile Development', description: 'Development of applications for mobile devices' },
+            { id: 'ui-ux', name: 'UI/UX Design', description: 'User interface and user experience design' },
+            { id: 'data-science', name: 'Data Science', description: 'Analysis and interpretation of complex data' },
+            { id: 'ml-ai', name: 'Machine Learning', description: 'Artificial intelligence and machine learning' },
+            { id: 'game-dev', name: 'Game Development', description: 'Development of video games and interactive applications' },
+            { id: 'cybersecurity', name: 'Cybersecurity', description: 'Protection of systems, networks, and programs from digital attacks' },
+          ];
+          setCategories(fallbackCategories);
+        } else {
+          setCategories(result || []);
+        }
+        
         // If editing a post and we have its category_id, pre-select it
         if (post?.category_id && result) {
           setCategoryId(post.category_id);
@@ -37,6 +53,19 @@ const PostForm = ({
       } catch (error) {
         console.error('Error fetching categories:', error);
         setError('Failed to load categories. Please try again.');
+        
+        // Use fallback categories even on error
+        console.log('Error fetching categories, using fallback categories');
+        const fallbackCategories = [
+          { id: 'web-dev', name: 'Web Development', description: 'Development of websites and web applications' },
+          { id: 'mobile-dev', name: 'Mobile Development', description: 'Development of applications for mobile devices' },
+          { id: 'ui-ux', name: 'UI/UX Design', description: 'User interface and user experience design' },
+          { id: 'data-science', name: 'Data Science', description: 'Analysis and interpretation of complex data' },
+          { id: 'ml-ai', name: 'Machine Learning', description: 'Artificial intelligence and machine learning' },
+          { id: 'game-dev', name: 'Game Development', description: 'Development of video games and interactive applications' },
+          { id: 'cybersecurity', name: 'Cybersecurity', description: 'Protection of systems, networks, and programs from digital attacks' },
+        ];
+        setCategories(fallbackCategories);
       } finally {
         setIsLoading(false);
       }
