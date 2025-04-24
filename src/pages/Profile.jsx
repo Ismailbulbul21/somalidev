@@ -240,7 +240,7 @@ const Profile = () => {
                     <svg className="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>{profile.years_of_experience} years of experience</span>
+                    <span>{profile.years_of_experience} <span className="text-purple-300 font-semibold">{profile.years_of_experience === 1 ? 'year' : 'years'}</span> of experience</span>
                   </div>
                 )}
                 

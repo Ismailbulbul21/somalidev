@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getSpecializations } from '../../utils/supabaseClient.js';
 
-const ProfileCard = ({ profile }) => {
+const ProfileCard = ({ profile, showYearsExperience }) => {
   const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
   const [specializationNames, setSpecializationNames] = useState([]);
@@ -110,12 +110,12 @@ const ProfileCard = ({ profile }) => {
             
             {/* Years of experience */}
             {profile.years_of_experience && (
-              <div className="flex items-center mt-1 text-gray-400 text-xs">
+              <div className={`flex items-center mt-1 ${showYearsExperience ? 'text-gray-300 text-sm font-medium' : 'text-gray-400 text-xs'}`}>
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="font-medium text-gray-300">
-                  {profile.years_of_experience} <span className="text-purple-300 font-semibold">{profile.years_of_experience === 1 ? 'year' : 'years'}</span> of experience
+                <span className={`${showYearsExperience ? 'font-semibold' : 'font-medium'} text-gray-300`}>
+                  {profile.years_of_experience} <span className="text-purple-300 font-bold">{profile.years_of_experience === 1 ? 'year' : 'years'}</span> of experience
                 </span>
               </div>
             )}
