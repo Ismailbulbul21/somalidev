@@ -124,7 +124,7 @@ const ProfileCard = ({ profile }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span className="font-medium text-gray-300">
-                  {profile.years_of_experience} {profile.years_of_experience === 1 ? 'year' : 'years'} of experience
+                  {profile.years_of_experience} <span className="text-purple-300">{profile.years_of_experience === 1 ? 'year' : 'years'}</span> of experience
                 </span>
               </div>
             )}
