@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SomaliDevs - Developer Network</title>
+    <!-- Prevent cryptocurrency extension conflicts -->
+    <script>
+      // Prevent errors from cryptocurrency browser extensions
+      if (typeof window !== 'undefined') {
+        const originalDefineProperty = Object.defineProperty;
+        
+        Object.defineProperty = function(obj, prop, descriptor) {
+          // Prevent errors from wallet extensions trying to modify ethereum
+          if (prop === 'ethereum' && obj === window) {
+            console.warn('Prevented ethereum property modification on window object');
+            return obj;
+          }
+          return originalDefineProperty(obj, prop, descriptor);
+        };
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
