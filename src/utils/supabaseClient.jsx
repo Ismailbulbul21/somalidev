@@ -950,6 +950,86 @@ export const togglePostLike = async (postId) => {
   }
 };
 
+// Like a post (always adds a like)
+export const likePost = async (postId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('You must be logged in to like posts');
+    
+    // Check if user already liked the post
+    const { data: existingLike, error: checkError } = await supabase
+      .from('post_likes')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('profile_id', user.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking post like:', checkError);
+      throw checkError;
+    }
+    
+    // Only add like if not already liked
+    if (!existingLike) {
+      const { error: likeError } = await supabase
+        .from('post_likes')
+        .insert([{
+          post_id: postId,
+          profile_id: user.id
+        }]);
+      
+      if (likeError) {
+        console.error('Error liking post:', likeError);
+        throw likeError;
+      }
+    }
+    
+    return { liked: true };
+  } catch (error) {
+    console.error('Exception in likePost:', error);
+    throw error;
+  }
+};
+
+// Unlike a post (always removes a like)
+export const unlikePost = async (postId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('You must be logged in to unlike posts');
+    
+    // Find existing like
+    const { data: existingLike, error: checkError } = await supabase
+      .from('post_likes')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('profile_id', user.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking post like:', checkError);
+      throw checkError;
+    }
+    
+    // Remove like if exists
+    if (existingLike) {
+      const { error: unlikeError } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('id', existingLike.id);
+      
+      if (unlikeError) {
+        console.error('Error unliking post:', unlikeError);
+        throw unlikeError;
+      }
+    }
+    
+    return { liked: false };
+  } catch (error) {
+    console.error('Exception in unlikePost:', error);
+    throw error;
+  }
+};
+
 // Toggle save on a post
 export const togglePostSave = async (postId) => {
   try {
@@ -1002,6 +1082,86 @@ export const togglePostSave = async (postId) => {
     }
   } catch (error) {
     console.error('Exception in togglePostSave:', error);
+    throw error;
+  }
+};
+
+// Save a post (always adds a save)
+export const savePost = async (postId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('You must be logged in to save posts');
+    
+    // Check if user already saved the post
+    const { data: existingSave, error: checkError } = await supabase
+      .from('post_saves')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('profile_id', user.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking post save:', checkError);
+      throw checkError;
+    }
+    
+    // Only save if not already saved
+    if (!existingSave) {
+      const { error: saveError } = await supabase
+        .from('post_saves')
+        .insert([{
+          post_id: postId,
+          profile_id: user.id
+        }]);
+      
+      if (saveError) {
+        console.error('Error saving post:', saveError);
+        throw saveError;
+      }
+    }
+    
+    return { saved: true };
+  } catch (error) {
+    console.error('Exception in savePost:', error);
+    throw error;
+  }
+};
+
+// Unsave a post (always removes a save)
+export const unsavePost = async (postId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('You must be logged in to unsave posts');
+    
+    // Find existing save
+    const { data: existingSave, error: checkError } = await supabase
+      .from('post_saves')
+      .select('id')
+      .eq('post_id', postId)
+      .eq('profile_id', user.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking post save:', checkError);
+      throw checkError;
+    }
+    
+    // Remove save if exists
+    if (existingSave) {
+      const { error: unsaveError } = await supabase
+        .from('post_saves')
+        .delete()
+        .eq('id', existingSave.id);
+      
+      if (unsaveError) {
+        console.error('Error unsaving post:', unsaveError);
+        throw unsaveError;
+      }
+    }
+    
+    return { saved: false };
+  } catch (error) {
+    console.error('Exception in unsavePost:', error);
     throw error;
   }
 };
