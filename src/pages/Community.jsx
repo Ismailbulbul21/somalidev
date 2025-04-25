@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/AuthContext';
 import { getPosts, getCategories } from '../utils/supabaseClient.jsx';
 import PostCard from '../components/ui/PostCard';
@@ -21,7 +21,7 @@ const Community = () => {
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [showNewPostForm, setShowNewPostForm] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
   
   const pageSize = 10;
@@ -134,7 +134,6 @@ const Community = () => {
   
   // Handle post creation success
   const handlePostSuccess = (newPost) => {
-    setShowNewPostForm(false);
     fetchPosts(); // Refresh posts
   };
   
@@ -207,40 +206,37 @@ const Community = () => {
   };
   
   return (
-    <div className="py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-10"
+          className="text-center mb-6"
         >
-          <h1 className="text-4xl font-bold text-white mb-4">
+          <h1 className="text-3xl font-bold text-white mb-2">
             <span className="bg-gradient-to-r from-purple-400 to-blue-500 text-transparent bg-clip-text">
               {activeCategory ? activeCategory.name : 'Community'}
             </span>
           </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto">
+          <p className="text-gray-400 text-sm max-w-2xl mx-auto">
             {activeCategory 
               ? activeCategory.description || `Explore discussions, questions, and resources about ${activeCategory.name}.`
               : 'Join the conversation, ask questions, share your projects, and connect with other developers.'}
           </p>
         </motion.div>
         
-        {/* Category Navigation */}
-        <div className="mb-8 overflow-x-auto pb-2">
-          <div className="flex space-x-2 min-w-max">
+        {/* Category Tabs */}
+        <div className="mb-6 overflow-x-auto scrollbar-hide">
+          <div className="flex space-x-2 min-w-max pb-1">
             <button
               onClick={() => handleCategorySelect('')}
-              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 !selectedCategory 
                   ? 'bg-purple-600 text-white' 
                   : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
               All Posts
             </button>
             
@@ -248,13 +244,13 @@ const Community = () => {
               <button
                 key={category.id}
                 onClick={() => handleCategorySelect(category.id)}
-                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                className={`flex items-center px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                   selectedCategory === category.id 
                     ? 'bg-purple-600 text-white' 
                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
-                <span className="mr-2">
+                <span className="mr-2 w-4 h-4">
                   {getCategoryIcon(category.name)}
                 </span>
                 {category.name}
@@ -263,72 +259,92 @@ const Community = () => {
           </div>
         </div>
         
-        {/* Actions and Filters */}
-        <div className="mb-8 bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* New Post Button */}
-            <div className="w-full md:w-auto">
-              {user ? (
-                <button
-                  onClick={() => setShowNewPostForm(!showNewPostForm)}
-                  className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
+        {/* Post Composer at the top - Facebook style */}
+        {user ? (
+          <div className="mb-6">
+            <PostForm 
+              preSelectedCategory={selectedCategory} 
+              onSuccess={handlePostSuccess} 
+            />
+          </div>
+        ) : (
+          <div className="mb-6 bg-gray-900 border border-gray-800 rounded-lg p-4 text-center">
+            <p className="text-gray-400 mb-3">Sign in to join the conversation</p>
+            <Link 
+              to="/signin"
+              className="inline-block px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Sign In
+            </Link>
+          </div>
+        )}
+        
+        {/* Search and Filter Bar */}
+        <div className="mb-6 rounded-lg overflow-hidden">
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-center">
+            {/* Search Input */}
+            <div className="flex-grow mr-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search posts..."
+                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-full px-4 py-2 pl-10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                />
+                <svg 
+                  className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
                 >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                  {showNewPostForm ? 'Cancel' : 'Create New Post'}
-                </button>
-              ) : (
-                <Link
-                  to="/signin"
-                  className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                  </svg>
-                  Sign In to Post
-                </Link>
-              )}
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-2.5 text-gray-500 hover:text-white"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
             
-            {/* Filters Group */}
-            <div className="flex-grow">
-              <details className="group w-full" open>
-                <summary className="flex items-center justify-between text-white cursor-pointer mb-2">
-                  <h3 className="text-sm font-medium">Filters & Search</h3>
-                  <svg className="w-5 h-5 group-open:rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </summary>
-                <div className="mt-2 space-y-3">
-                  {/* Search input */}
-                  <div className="relative w-full">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search posts..."
-                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 pl-10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
-                    />
-                    <svg 
-                      className="absolute left-3 top-3 w-4 h-4 text-gray-400" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {/* Type Filter */}
+            {/* Filter Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-2 rounded-full ${showFilters ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+              title="Show filters"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Expandable Filters Section */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden bg-gray-900 border-x border-b border-gray-800 rounded-b-lg"
+              >
+                <div className="p-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Post Type Filter */}
                     <div>
-                      <label htmlFor="postType" className="block text-gray-400 text-sm mb-1">Post Type</label>
+                      <label htmlFor="postType" className="block text-gray-400 text-xs mb-1">Post Type</label>
                       <select
                         id="postType"
                         value={selectedType}
                         onChange={(e) => setSelectedType(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
                       >
                         {postTypes.map(type => (
                           <option key={type.value} value={type.value}>
@@ -338,88 +354,49 @@ const Community = () => {
                       </select>
                     </div>
                     
-                    {/* Sort Field */}
+                    {/* Sort Options */}
                     <div>
-                      <label htmlFor="sortBy" className="block text-gray-400 text-sm mb-1">Sort By</label>
-                      <select
-                        id="sortBy"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
-                      >
-                        {sortOptions.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    {/* Sort Direction */}
-                    <div>
-                      <label htmlFor="sortOrder" className="block text-gray-400 text-sm mb-1">Sort Direction</label>
-                      <button
-                        id="sortOrder"
-                        onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-                        className="w-full flex justify-between items-center bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 hover:bg-gray-750"
-                      >
-                        <span>{sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}</span>
-                        {sortOrder === 'desc' ? (
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                          </svg>
-                        ) : (
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
-                          </svg>
-                        )}
-                      </button>
+                      <label htmlFor="sortBy" className="block text-gray-400 text-xs mb-1">Sort By</label>
+                      <div className="flex space-x-2">
+                        <select
+                          id="sortBy"
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value)}
+                          className="flex-grow bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                        >
+                          {sortOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        <button
+                          onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                          className="flex items-center justify-center bg-gray-800 border border-gray-700 text-white rounded-lg p-2 hover:bg-gray-750 transition-colors"
+                          title={sortOrder === 'desc' ? 'Newest first' : 'Oldest first'}
+                        >
+                          {sortOrder === 'desc' ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
-                  {/* Applied filters tags */}
+                  {/* Active Filters */}
                   {(selectedType || searchQuery || sortBy !== 'created_at' || sortOrder !== 'desc') && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      <div className="text-gray-400 text-sm">Applied Filters:</div>
-                      {selectedType && (
-                        <div className="bg-purple-900/40 text-white text-sm px-3 py-1 rounded-full flex items-center">
-                          <span className="mr-1">Type: {postTypes.find(t => t.value === selectedType)?.label}</span>
-                          <button onClick={() => setSelectedType('')} className="ml-1 text-gray-300 hover:text-white">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                      {searchQuery && (
-                        <div className="bg-purple-900/40 text-white text-sm px-3 py-1 rounded-full flex items-center">
-                          <span className="mr-1">Search: {searchQuery}</span>
-                          <button onClick={() => setSearchQuery('')} className="ml-1 text-gray-300 hover:text-white">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                      {(sortBy !== 'created_at' || sortOrder !== 'desc') && (
-                        <div className="bg-purple-900/40 text-white text-sm px-3 py-1 rounded-full flex items-center">
-                          <span className="mr-1">
-                            Sort: {sortOptions.find(o => o.value === sortBy)?.label} ({sortOrder === 'desc' ? 'Desc' : 'Asc'})
-                          </span>
-                          <button 
-                            onClick={() => {
-                              setSortBy('created_at');
-                              setSortOrder('desc');
-                            }} 
-                            className="ml-1 text-gray-300 hover:text-white"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                      {(selectedType || searchQuery || sortBy !== 'created_at' || sortOrder !== 'desc') && (
+                    <div className="pt-2 border-t border-gray-800">
+                      <div className="flex flex-wrap gap-2">
+                        <div className="text-gray-400 text-xs pt-1">Active filters:</div>
+                        
+                        {/* Reset All Filters */}
                         <button 
                           onClick={() => {
                             setSelectedType('');
@@ -427,60 +404,19 @@ const Community = () => {
                             setSortBy('created_at');
                             setSortOrder('desc');
                           }}
-                          className="text-purple-400 hover:text-purple-300 text-sm underline"
+                          className="text-xs text-purple-400 hover:text-purple-300 px-2 py-1 border border-purple-800/40 rounded-full hover:bg-purple-900/20"
                         >
-                          Clear All
+                          Reset All
                         </button>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>
-              </details>
-            </div>
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        
-        {/* New Post Form */}
-        {showNewPostForm && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mb-8 overflow-hidden"
-          >
-            <PostForm 
-              preSelectedCategory={selectedCategory}
-              onSuccess={handlePostSuccess}
-              onCancel={() => setShowNewPostForm(false)}
-            />
-          </motion.div>
-        )}
-        
-        {/* Active Category Banner - only shown when a category is selected */}
-        {activeCategory && (
-          <div className="mb-8 bg-purple-900/20 border border-purple-800/50 rounded-lg p-4 flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-10 h-10 flex items-center justify-center bg-purple-900/60 rounded-full mr-3">
-                {getCategoryIcon(activeCategory.name)}
-              </div>
-              <div>
-                <h3 className="text-white font-medium text-lg">{activeCategory.name}</h3>
-                <p className="text-gray-400 text-sm">{activeCategory.description || `Viewing posts about ${activeCategory.name}`}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => handleCategorySelect('')}
-              className="text-gray-400 hover:text-white p-2"
-              aria-label="Clear category filter"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
-        
+
         {/* Posts List */}
         {loading ? (
           <div className="flex justify-center py-12">
@@ -513,21 +449,13 @@ const Community = () => {
                 ? 'Try changing your search or filters'
                 : 'Be the first to start a conversation'}
             </p>
-            {(!searchQuery && user) && (
-              <button
-                onClick={() => setShowNewPostForm(true)}
-                className="mt-4 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-md font-medium transition-colors"
-              >
-                Create New Post
-              </button>
-            )}
           </div>
         ) : (
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="space-y-6"
+            className="space-y-4"
           >
             {posts.map(post => (
               <PostCard 
@@ -540,7 +468,7 @@ const Community = () => {
         
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="mt-8 flex justify-center">
+          <div className="mt-6 flex justify-center">
             <nav className="flex items-center space-x-2">
               <button
                 onClick={() => setPage(p => Math.max(p - 1, 1))}
