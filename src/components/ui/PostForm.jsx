@@ -51,13 +51,6 @@ const PostForm = ({
     fetchCategories();
   }, []);
   
-  // Automatically transition to step 2 when preSelectedCategory is provided
-  useEffect(() => {
-    if (preSelectedCategory && categoryId && step === 1 && categories.length > 0) {
-      setStep(2);
-    }
-  }, [preSelectedCategory, categoryId, categories, step]);
-  
   // Set preselected category if provided
   useEffect(() => {
     if (preSelectedCategory) {
@@ -75,13 +68,16 @@ const PostForm = ({
     e.preventDefault();
     setError(null);
     
-    // Validate form
-    if (!title.trim()) {
+    // Validate form - make sure to properly trim and check title
+    const trimmedTitle = title ? title.trim() : '';
+    const trimmedContent = content ? content.trim() : '';
+    
+    if (!trimmedTitle) {
       setError('Please enter a title');
       return;
     }
     
-    if (!content.trim()) {
+    if (!trimmedContent) {
       setError('Please enter some content');
       return;
     }
@@ -95,8 +91,8 @@ const PostForm = ({
     
     try {
       const formData = new FormData();
-      formData.append('title', title);
-      formData.append('content', content);
+      formData.append('title', trimmedTitle);
+      formData.append('content', trimmedContent);
       formData.append('post_type', postType);
       formData.append('category_id', categoryId);
       

@@ -736,18 +736,44 @@ export const getPost = async (postId) => {
 // Create a new post
 export const createPost = async (post) => {
   try {
-    // Validate required fields
-    if (!post.title) throw new Error('Post title is required');
-    if (!post.content) throw new Error('Post content is required');
-    if (!post.post_type) throw new Error('Post type is required');
+    console.log('createPost received:', post);
     
-    // Create a copy of the post data to avoid modifying the original
-    const postData = { ...post };
+    // Handle FormData objects
+    let postData = {};
+    
+    if (post instanceof FormData) {
+      // Extract data from FormData
+      console.log('Post is FormData, extracting values...');
+      postData = {
+        title: post.get('title'),
+        content: post.get('content'),
+        post_type: post.get('post_type'),
+        category_id: post.get('category_id')
+      };
+      
+      // Handle tags if present
+      const tags = post.get('tags');
+      if (tags) {
+        try {
+          postData.tags = JSON.parse(tags);
+        } catch (e) {
+          console.error('Error parsing tags:', e);
+        }
+      }
+      
+      // Log the extracted data
+      console.log('Extracted data from FormData:', postData);
+    } else {
+      // If not FormData, use as is
+      postData = { ...post };
+    }
+    
+    // Validate required fields
+    if (!postData.title) throw new Error('Post title is required');
+    if (!postData.content) throw new Error('Post content is required');
+    if (!postData.post_type) throw new Error('Post type is required');
     
     // Check if category_id is a non-UUID string (from our fallback categories)
-    // If using fallback categories, we can either:
-    // 1. Set category_id to null (simplest solution)
-    // 2. Create a real category first (more complex)
     if (postData.category_id && !postData.category_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
       console.log('Using a non-UUID category ID, setting to null for database compatibility');
       postData.category_id = null; // Set to null to avoid database constraint errors
@@ -777,10 +803,47 @@ export const updatePost = async (postId, updates) => {
   try {
     if (!postId) throw new Error('Post ID is required');
     
+    console.log('updatePost received:', { postId, updates });
+    
+    // Handle FormData objects
+    let updateData = {};
+    
+    if (updates instanceof FormData) {
+      // Extract data from FormData
+      console.log('Updates is FormData, extracting values...');
+      updateData = {
+        title: updates.get('title'),
+        content: updates.get('content'),
+        post_type: updates.get('post_type'),
+        category_id: updates.get('category_id')
+      };
+      
+      // Handle tags if present
+      const tags = updates.get('tags');
+      if (tags) {
+        try {
+          updateData.tags = JSON.parse(tags);
+        } catch (e) {
+          console.error('Error parsing tags:', e);
+        }
+      }
+      
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => 
+        updateData[key] === undefined && delete updateData[key]
+      );
+      
+      // Log the extracted data
+      console.log('Extracted data from FormData:', updateData);
+    } else {
+      // If not FormData, use as is
+      updateData = { ...updates };
+    }
+    
     // Update the post
     const { data, error } = await supabase
       .from('posts')
-      .update(updates)
+      .update(updateData)
       .eq('id', postId)
       .select()
       .single();
