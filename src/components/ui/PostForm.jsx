@@ -4,7 +4,7 @@ import { FiCode, FiLink, FiEdit3, FiX, FiArrowLeft, FiSend } from 'react-icons/f
 import { toast } from 'react-hot-toast';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useAuth } from '../../utils/AuthContext';
-import { createPost, updatePost, fetchCategories } from '../../utils/supabaseClient.jsx';
+import { createPost, updatePost, getCategories } from '../../utils/supabaseClient.jsx';
 import TagsInput from './TagsInput';
 import MediaUpload from './MediaUpload';
 
@@ -36,9 +36,9 @@ const PostForm = ({
   
   // Fetch categories when component mounts
   useEffect(() => {
-    const getCategories = async () => {
+    const fetchCategories = async () => {
       try {
-        const data = await fetchCategories();
+        const data = await getCategories();
         if (data) {
           setCategories(data);
         }
@@ -48,7 +48,7 @@ const PostForm = ({
       }
     };
     
-    getCategories();
+    fetchCategories();
   }, []);
   
   // Automatically transition to step 2 when preSelectedCategory is provided
