@@ -71,6 +71,9 @@ export const getCategories = async () => {
     }
 };
 
+// Alias for getCategories function for backward compatibility
+export const fetchCategories = getCategories;
+
 export const getSkills = async (category) => {
     let query = supabase.from('skills').select('*');
     if (category) {
