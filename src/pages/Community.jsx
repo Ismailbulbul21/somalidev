@@ -5,14 +5,12 @@ import { useAuth } from '../utils/AuthContext';
 import { getPosts, getCategories } from '../utils/supabaseClient.jsx';
 import PostCard from '../components/ui/PostCard';
 import PostForm from '../components/ui/PostForm';
-import { toast } from 'react-hot-toast';
-import { FiPlus, FiSearch, FiMessageCircle } from 'react-icons/fi';
 
 const Community = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { categoryId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [posts, setPosts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(categoryId || '');
@@ -25,11 +23,6 @@ const Community = () => {
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
-  const [showNewPostForm, setShowNewPostForm] = useState(false);
-  const [filterType, setFilterType] = useState('all');
-  
-  // Popular tags for sidebar
-  const popularTags = ['javascript', 'react', 'webdev', 'design', 'career', 'mobile', 'backend'];
   
   const pageSize = 10;
   
@@ -42,30 +35,6 @@ const Community = () => {
     { value: 'article', label: 'Article' },
     { value: 'resource', label: 'Resource' }
   ];
-  
-  // Filter button component
-  const FilterButton = ({ children, isActive, onClick }) => (
-    <button
-      onClick={onClick}
-      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-        isActive
-          ? 'bg-purple-600 text-white'
-          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-      }`}
-    >
-      {children}
-    </button>
-  );
-  
-  // Handle filter change
-  const handleFilterChange = (filter) => {
-    setFilterType(filter);
-    // Map filter to actual post type for API
-    let type = '';
-    if (filter === 'questions') type = 'question';
-    if (filter === 'discussions') type = 'discussion';
-    setSelectedType(type);
-  };
   
   // Sort options
   const sortOptions = [
@@ -158,20 +127,10 @@ const Community = () => {
     // Sync state with URL params
     if (categoryId) {
       setSelectedCategory(categoryId);
-      console.log('Setting selectedCategory from URL:', categoryId);
-      
-      // When we have a categoryId from the URL, we'll set the activeCategory when categories are loaded
-      if (categories.length > 0) {
-        const category = categories.find(cat => cat.id === categoryId);
-        if (category) {
-          setActiveCategory(category);
-          console.log('Setting activeCategory from URL param with category object:', category);
-        }
-      }
     }
     
     fetchPosts();
-  }, [categoryId, categories]);
+  }, [categoryId]);
   
   // Handle post creation success
   const handlePostSuccess = (newPost) => {
@@ -246,68 +205,30 @@ const Community = () => {
     }
   };
   
-  const renderSidebar = () => {
-    return (
-      <div className="hidden lg:block sticky top-20 space-y-4 w-full max-w-xs">
-        {/* Quick Post Creation */}
-        {user ? (
-          <PostForm 
-            simplified={true}
-            preSelectedCategory={activeCategory?.id} 
-            onSuccess={(post) => {
-              // Add the new post to the posts list and close the form
-              setPosts((prevPosts) => [post, ...prevPosts]);
-              toast.success('Post created successfully!');
-            }}
-          />
-        ) : (
-          <div className="bg-gray-900/70 backdrop-blur-sm border border-gray-800 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-white mb-2">Join the conversation</h3>
-            <p className="text-gray-400 text-sm mb-3">Sign in to share your thoughts and connect with the community.</p>
-            <Link 
-              to="/login" 
-              className="w-full block text-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-colors"
-            >
-              Sign In
-            </Link>
-          </div>
-        )}
-        
-        {/* Popular Topics */}
-        <div className="bg-gray-900/70 backdrop-blur-sm border border-gray-800 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-white mb-3">Popular Topics</h3>
-          <div className="space-y-2">
-            {popularTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => {
-                  setSearchParams(prev => {
-                    const params = new URLSearchParams(prev);
-                    params.set('tag', tag);
-                    return params;
-                  });
-                }}
-                className="block w-full text-left px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-750 text-gray-300 text-sm transition-colors"
-              >
-                #{tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white pb-12">
-      <div className="container mx-auto px-4 pt-24">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 text-transparent bg-clip-text">Community</h1>
-        </div>
-
-        {/* Category Navigation */}
-        <div className="mb-6 overflow-x-auto pb-2">
-          <div className="flex space-x-2">
+    <div className="py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-6"
+        >
+          <h1 className="text-3xl font-bold text-white mb-2">
+            <span className="bg-gradient-to-r from-purple-400 to-blue-500 text-transparent bg-clip-text">
+              {activeCategory ? activeCategory.name : 'Community'}
+            </span>
+          </h1>
+          <p className="text-gray-400 text-sm max-w-2xl mx-auto">
+            {activeCategory 
+              ? activeCategory.description || `Explore discussions, questions, and resources about ${activeCategory.name}.`
+              : 'Join the conversation, ask questions, share your projects, and connect with other developers.'}
+          </p>
+        </motion.div>
+        
+        {/* Category Tabs */}
+        <div className="mb-6 overflow-x-auto scrollbar-hide">
+          <div className="flex space-x-2 min-w-max pb-1">
             <button
               onClick={() => handleCategorySelect('')}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
@@ -337,193 +258,263 @@ const Community = () => {
             ))}
           </div>
         </div>
-
-        {/* Main content and sidebar layout */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Main content area */}
-          <div className="flex-1 order-2 lg:order-1">
-            {/* Filter controls */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-              <div className="relative w-full sm:w-64">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <FiSearch className="text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search posts..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    if (e.target.value) {
-                      setSearchParams(prev => {
-                        const params = new URLSearchParams(prev);
-                        params.set('search', e.target.value);
-                        return params;
-                      });
-                    } else {
-                      setSearchParams(prev => {
-                        const params = new URLSearchParams(prev);
-                        params.delete('search');
-                        return params;
-                      });
-                    }
-                  }}
-                  className="bg-gray-800 text-white w-full pl-10 pr-4 py-2 rounded-lg border border-gray-700 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
-              </div>
-              
-              <div className="flex w-full sm:w-auto space-x-2">
-                <select
-                  value={sortBy}
-                  onChange={(e) => {
-                    setSortBy(e.target.value);
-                    setSearchParams(prev => {
-                      const params = new URLSearchParams(prev);
-                      params.set('sort', e.target.value);
-                      return params;
-                    });
-                  }}
-                  className="bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                >
-                  <option value="recent">Most Recent</option>
-                  <option value="popular">Most Popular</option>
-                </select>
-                
-                <FilterButton
-                  isActive={filterType === 'all'}
-                  onClick={() => handleFilterChange('all')}
-                >
-                  All
-                </FilterButton>
-                <FilterButton
-                  isActive={filterType === 'questions'}
-                  onClick={() => handleFilterChange('questions')}
-                >
-                  Questions
-                </FilterButton>
-                <FilterButton
-                  isActive={filterType === 'discussions'}
-                  onClick={() => handleFilterChange('discussions')}
-                >
-                  Discussions
-                </FilterButton>
-              </div>
-            </div>
-
-            {/* Posts list */}
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-              </div>
-            ) : posts.length > 0 ? (
-              <div className="space-y-4">
-                {posts.map(post => (
-                  <PostCard 
-                    key={post.id} 
-                    post={post} 
-                    onDelete={() => fetchPosts()}
-                  />
-                ))}
-                
-                {/* Load More button */}
-                {totalPages > page && (
-                  <div className="flex justify-center mt-8">
-                    <button
-                      onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                      disabled={loading}
-                      className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center"
-                    >
-                      {loading ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Loading...
-                        </>
-                      ) : (
-                        'Load More'
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-gray-900/70 backdrop-blur-sm border border-gray-800 rounded-lg p-8 text-center">
-                <FiMessageCircle className="mx-auto text-gray-600 mb-4" size={48} />
-                <h3 className="text-xl font-semibold text-white mb-2">No posts found</h3>
-                <p className="text-gray-400 mb-6">
-                  {searchQuery ? 
-                    `No posts match your search for "${searchQuery}"` : 
-                    'Be the first to start a conversation!'
-                  }
-                </p>
-                {user && (
-                  <button
-                    onClick={() => setShowNewPostForm(true)}
-                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-colors"
-                  >
-                    <FiPlus className="mr-2" />
-                    Create Post
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          
-          {/* Post Form sidebar */}
-          <div className="w-full lg:w-96 lg:flex-shrink-0 order-1 lg:order-2 mb-6 lg:mb-0 lg:sticky lg:top-20 lg:self-start">
+        
+        {/* Main Content - Side by Side Layout */}
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Left Column - Post Form */}
+          <div className="md:w-1/3 md:sticky md:top-24 md:self-start">
             {user ? (
-              <div className="bg-gray-900/70 backdrop-blur-sm border border-gray-800 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-3">Start a conversation</h3>
+              <div className="mb-6 md:mb-0">
                 <PostForm 
+                  preSelectedCategory={selectedCategory} 
+                  onSuccess={handlePostSuccess} 
                   simplified={true}
-                  preSelectedCategory={activeCategory?.id} 
-                  onSuccess={(post) => {
-                    // Add the new post to the posts list
-                    setPosts((prevPosts) => [post, ...prevPosts]);
-                    toast.success('Post created successfully!');
-                  }}
                 />
               </div>
             ) : (
-              <div className="bg-gray-900/70 backdrop-blur-sm border border-gray-800 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-2">Join the conversation</h3>
-                <p className="text-gray-400 text-sm mb-3">Sign in to share your thoughts and connect with the community.</p>
+              <div className="mb-6 md:mb-0 bg-gray-900 border border-gray-800 rounded-lg p-4 text-center">
+                <p className="text-gray-400 mb-3">Sign in to join the conversation</p>
                 <Link 
-                  to="/login" 
-                  className="w-full block text-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-colors"
+                  to="/signin"
+                  className="inline-block px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-colors"
                 >
                   Sign In
                 </Link>
               </div>
             )}
-            
-            {/* Popular Topics */}
-            <div className="bg-gray-900/70 backdrop-blur-sm border border-gray-800 rounded-lg p-4 mt-4">
-              <h3 className="text-lg font-semibold text-white mb-3">Popular Topics</h3>
-              <div className="space-y-2">
-                {popularTags?.map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => {
-                      setSearchParams(prev => {
-                        const params = new URLSearchParams(prev);
-                        params.set('tag', tag);
-                        return params;
-                      });
-                    }}
-                    className="block w-full text-left px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-750 text-gray-300 text-sm transition-colors"
-                  >
-                    #{tag}
-                  </button>
-                ))}
+          </div>
+          
+          {/* Right Column - Posts List */}
+          <div className="md:w-2/3">
+            {/* Search and Filter Bar */}
+            <div className="mb-6 rounded-lg overflow-hidden">
+              <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-center">
+                {/* Search Input */}
+                <div className="flex-grow mr-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search posts..."
+                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-full px-4 py-2 pl-10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                    />
+                    <svg 
+                      className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-2.5 text-gray-500 hover:text-white"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Filter Button */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`p-2 rounded-full ${showFilters ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                  title="Show filters"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                </button>
               </div>
+              
+              {/* Expandable Filters Section */}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden bg-gray-900 border-x border-b border-gray-800 rounded-b-lg"
+                  >
+                    <div className="p-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Post Type Filter */}
+                        <div>
+                          <label htmlFor="postType" className="block text-gray-400 text-xs mb-1">Post Type</label>
+                          <select
+                            id="postType"
+                            value={selectedType}
+                            onChange={(e) => setSelectedType(e.target.value)}
+                            className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                          >
+                            {postTypes.map(type => (
+                              <option key={type.value} value={type.value}>
+                                {type.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        {/* Sort Options */}
+                        <div>
+                          <label htmlFor="sortBy" className="block text-gray-400 text-xs mb-1">Sort By</label>
+                          <div className="flex space-x-2">
+                            <select
+                              id="sortBy"
+                              value={sortBy}
+                              onChange={(e) => setSortBy(e.target.value)}
+                              className="flex-grow bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                            >
+                              {sortOptions.map(option => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            
+                            <button
+                              onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                              className="flex items-center justify-center bg-gray-800 border border-gray-700 text-white rounded-lg p-2 hover:bg-gray-750 transition-colors"
+                              title={sortOrder === 'desc' ? 'Newest first' : 'Oldest first'}
+                            >
+                              {sortOrder === 'desc' ? (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Active Filters */}
+                      {(selectedType || searchQuery || sortBy !== 'created_at' || sortOrder !== 'desc') && (
+                        <div className="pt-2 border-t border-gray-800">
+                          <div className="flex flex-wrap gap-2">
+                            <div className="text-gray-400 text-xs pt-1">Active filters:</div>
+                            
+                            {/* Reset All Filters */}
+                            <button 
+                              onClick={() => {
+                                setSelectedType('');
+                                setSearchQuery('');
+                                setSortBy('created_at');
+                                setSortOrder('desc');
+                              }}
+                              className="text-xs text-purple-400 hover:text-purple-300 px-2 py-1 border border-purple-800/40 rounded-full hover:bg-purple-900/20"
+                            >
+                              Reset All
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
+
+            {/* Posts List */}
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="text-center">
+                  <svg className="animate-spin h-10 w-10 text-purple-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <p className="text-gray-400">Loading posts...</p>
+                </div>
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center">
+                <svg
+                  className="mx-auto h-12 w-12 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <h3 className="mt-4 text-xl font-medium text-white">No posts found</h3>
+                <p className="mt-2 text-gray-400">
+                  {searchQuery || selectedCategory || selectedType
+                    ? 'Try changing your search or filters'
+                    : 'Be the first to start a conversation'}
+                </p>
+              </div>
+            ) : (
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="space-y-4"
+              >
+                {posts.map(post => (
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                  />
+                ))}
+              </motion.div>
+            )}
+            
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+              <div className="mt-6 flex justify-center">
+                <nav className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(p - 1, 1))}
+                    disabled={page === 1}
+                    className={`px-3 py-1 rounded-md ${
+                      page === 1
+                        ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-800 text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  
+                  <span className="text-gray-400">
+                    Page {page} of {totalPages}
+                  </span>
+                  
+                  <button
+                    onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+                    disabled={page === totalPages}
+                    className={`px-3 py-1 rounded-md ${
+                      page === totalPages
+                        ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-800 text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </nav>
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 };
 

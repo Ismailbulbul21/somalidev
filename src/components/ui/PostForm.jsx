@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiCode, FiLink, FiEdit3, FiX, FiArrowLeft, FiSend, FiMessageSquare, FiHelpCircle, FiUpload } from 'react-icons/fi';
+import { FiCode, FiLink, FiEdit3, FiX, FiArrowLeft, FiSend } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useAuth } from '../../utils/AuthContext';
@@ -32,7 +32,7 @@ const PostForm = ({
   const [error, setError] = useState(null);
   const [charCount, setCharCount] = useState(0);
   const [expanded, setExpanded] = useState(!!initialData || !simplified);
-  const [step, setStep] = useState(preSelectedCategory ? 2 : 1);
+  const [step, setStep] = useState(1);
   
   // Fetch categories when component mounts
   useEffect(() => {
@@ -51,16 +51,25 @@ const PostForm = ({
     fetchCategories();
   }, []);
   
-  // Set preselected category if provided or changed
+  // Set preselected category if provided
   useEffect(() => {
     if (preSelectedCategory) {
-      console.log('PreSelectedCategory detected:', preSelectedCategory);
       setCategoryId(preSelectedCategory);
-      // Also ensure we're on step 2 if category is pre-selected
-      setStep(2);
-      console.log('Set step to 2 because preSelectedCategory is provided');
     }
   }, [preSelectedCategory]);
+  
+  // Automatically advance to step 2 when preSelectedCategory is provided
+  useEffect(() => {
+    // If we have a categoryId and we're on step 1, and the categoryId came from preSelectedCategory
+    if (categoryId && step === 1 && preSelectedCategory) {
+      // Move to step 2 after a short delay to ensure the state has updated
+      const timer = setTimeout(() => {
+        setStep(2);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [categoryId, step, preSelectedCategory]);
   
   // Update character count when content changes
   useEffect(() => {
@@ -205,306 +214,174 @@ const PostForm = ({
   }
   
   return (
-    <div className={`${simplified ? 'bg-gray-900/70 backdrop-blur-sm border border-gray-800 rounded-lg p-4' : 'bg-gray-900/70 backdrop-blur-sm border border-gray-800 rounded-lg p-6'}`}>
-      {!simplified && (
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-white">
-            {initialData ? 'Edit Post' : 'Create New Post'}
-          </h2>
-          {onCancel && (
-            <button 
-              onClick={onCancel}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <FiX size={20} />
-            </button>
-          )}
-        </div>
-      )}
-
-      {simplified && (
-        <h3 className="text-lg font-semibold text-white mb-3">
-          Start a conversation
-        </h3>
-      )}
-
-      <AnimatePresence mode="wait">
-        {step === 1 && !simplified && (
-          <motion.div
-            key="step1"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-white mb-3">Select a Category</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {categories.map(category => (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden mb-6"
+      >
+        <div className="p-4">
+          {/* Form Header */}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">
+              {initialData ? 'Edit Post' : 'Create Post'}
+            </h3>
+            {(onCancel || simplified) && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="text-gray-400 hover:text-white p-1 rounded-full transition-colors"
+              >
+                {simplified ? <FiX size={20} /> : <FiArrowLeft size={20} />}
+              </button>
+            )}
+          </div>
+          
+          {/* Post Form */}
+          <form onSubmit={handleSubmit}>
+            {/* Post Type Selection */}
+            <div className="mb-4">
+              <label className="block text-gray-400 text-sm mb-2">
+                Post Type
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {postTypes.map((type) => (
                   <button
-                    key={category.id}
-                    onClick={() => {
-                      setCategoryId(category.id);
-                      setStep(2);
-                    }}
-                    className={`p-3 rounded-lg border ${
-                      categoryId === category.id
-                        ? 'border-purple-500 bg-purple-500/20 text-white'
-                        : 'border-gray-700 bg-gray-800/70 text-gray-300 hover:border-purple-400 hover:bg-gray-700/70'
-                    } flex items-center transition-colors`}
+                    key={type.id}
+                    type="button"
+                    onClick={() => setPostType(type.id)}
+                    className={`flex flex-col items-center justify-center p-2 rounded-md transition-colors ${
+                      postType === type.id
+                        ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
+                        : 'bg-gray-800 text-gray-400 border border-gray-700 hover:bg-gray-750'
+                    }`}
                   >
-                    {getCategoryIcon(category.name)}
-                    <div className="ml-3 text-left">
-                      <span className="block font-medium">{category.name}</span>
-                      {category.description && (
-                        <span className="text-xs text-gray-400 mt-0.5">{category.description}</span>
-                      )}
-                    </div>
+                    <span className="text-xl mb-1">{type.icon}</span>
+                    <span className="text-xs">{type.label}</span>
                   </button>
                 ))}
               </div>
             </div>
-          </motion.div>
-        )}
-
-        {(step === 2 || simplified) && (
-          <motion.div
-            key="step2"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <form onSubmit={handleSubmit}>
-              {/* Post Type Selection */}
-              <div className="mb-4">
-                <label className={`block ${simplified ? 'text-sm' : 'text-base'} font-medium text-gray-300 mb-2`}>
-                  Post Type
-                </label>
-                <div className="flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setPostType('discussion')}
-                    className={`flex-1 py-2 px-3 rounded-lg border ${
-                      postType === 'discussion'
-                        ? 'border-purple-500 bg-purple-500/20 text-white'
-                        : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-750'
-                    } transition-colors flex items-center justify-center`}
-                  >
-                    <FiMessageSquare className="mr-2" />
-                    <span>Discussion</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPostType('question')}
-                    className={`flex-1 py-2 px-3 rounded-lg border ${
-                      postType === 'question'
-                        ? 'border-purple-500 bg-purple-500/20 text-white'
-                        : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-750'
-                    } transition-colors flex items-center justify-center`}
-                  >
-                    <FiHelpCircle className="mr-2" />
-                    <span>Question</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Category Selection (if in simplified mode) */}
-              {simplified && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={categoryId || ''}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    required
-                  >
-                    <option value="" disabled>Select a category</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Post Title */}
-              <div className="mb-4">
-                <label 
-                  htmlFor="title" 
-                  className={`block ${simplified ? 'text-sm' : 'text-base'} font-medium text-gray-300 mb-2`}
-                >
-                  Title
-                </label>
-                <input
-                  id="title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={postType === 'question' ? "What's your question?" : "Give your post a title"}
-                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  required
-                />
-              </div>
-
-              {/* Post Content */}
-              <div className="mb-4">
-                <label 
-                  htmlFor="content" 
-                  className={`block ${simplified ? 'text-sm' : 'text-base'} font-medium text-gray-300 mb-2`}
-                >
-                  Content
-                </label>
-                <textarea
+            
+            {/* Category Selection */}
+            <div className="mb-4">
+              <label htmlFor="category" className="block text-gray-400 text-sm mb-2">
+                Category
+              </label>
+              <select
+                id="category"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-md p-2.5 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                required
+              >
+                <option value="">Select a category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Post Title */}
+            <div className="mb-4">
+              <label htmlFor="title" className="block text-gray-400 text-sm mb-2">
+                Title
+              </label>
+              <input
+                type="text"
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Write a descriptive title..."
+                className="w-full bg-gray-800 border border-gray-700 rounded-md p-3 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                required
+              />
+            </div>
+            
+            {/* Post Content */}
+            <div className="mb-4">
+              <label htmlFor="content" className="block text-gray-400 text-sm mb-2">
+                Content
+              </label>
+              <div className="relative">
+                <TextareaAutosize
                   id="content"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder={postType === 'question' 
-                    ? "Describe your question in detail. Include any relevant code or context." 
-                    : "Share your thoughts, insights, or experiences..."
-                  }
-                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 min-h-[120px] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  placeholder="Share your thoughts..."
+                  minRows={4}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-md p-3 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none resize-none"
                   required
                 />
+                <div className="absolute bottom-2 right-2 text-xs text-gray-500">
+                  {charCount > 0 && `${charCount} characters`}
+                </div>
               </div>
-
-              {/* Media Upload - only show in full mode */}
-              {!simplified && (
-                <div className="mb-6">
-                  <label className="block text-base font-medium text-gray-300 mb-2">
-                    Media (optional)
-                  </label>
-                  <div 
-                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-gray-800/50 transition-colors ${
-                      isDragging ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700'
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current.click()}
-                  >
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      className="hidden"
-                      accept="image/*"
-                      multiple
-                    />
-                    <FiUpload className="mx-auto text-gray-400 mb-2" size={24} />
-                    <p className="text-sm text-gray-400">
-                      Click or drag images to upload
-                    </p>
-                  </div>
-
-                  {/* Preview uploaded images */}
-                  {mediaFiles.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {mediaFiles.map((file, index) => (
-                        <div key={index} className="relative">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={`Preview ${index}`}
-                            className="h-20 w-20 object-cover rounded-md"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeMedia(index)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <FiX size={16} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tags Input - only show in full mode */}
-              {!simplified && (
-                <div className="mb-6">
-                  <label className="block text-base font-medium text-gray-300 mb-2">
-                    Tags (optional)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={handleTagKeyDown}
-                      placeholder="Add tags and press Enter (e.g., javascript, react)"
-                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                  </div>
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {tags.map((tag, index) => (
-                        <div
-                          key={index}
-                          className="bg-gray-800 text-gray-300 px-3 py-1 rounded-full text-sm flex items-center"
-                        >
-                          #{tag}
-                          <button
-                            type="button"
-                            onClick={() => removeTag(index)}
-                            className="ml-2 text-gray-400 hover:text-white"
-                          >
-                            <FiX size={14} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {error && (
-                <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded text-red-200 text-sm">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex justify-end">
-                {step === 2 && !simplified && onCancel && (
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="mr-3 px-4 py-2 text-gray-300 hover:text-white transition-colors"
-                  >
-                    Back
-                  </button>
+            </div>
+            
+            {/* Media Upload */}
+            <div className="mb-4">
+              <label className="block text-gray-400 text-sm mb-2">
+                Media (optional)
+              </label>
+              <MediaUpload
+                mediaFile={mediaFile}
+                setMediaFile={setMediaFile}
+                mediaPreview={mediaPreview}
+                setMediaPreview={setMediaPreview}
+              />
+            </div>
+            
+            {/* Tags Input */}
+            <div className="mb-4">
+              <label htmlFor="tags" className="block text-gray-400 text-sm mb-2">
+                Tags (optional)
+              </label>
+              <TagsInput
+                tags={tags}
+                setTags={setTags}
+                placeholder="Add tags (press Enter after each tag)"
+                className="bg-gray-800 border border-gray-700 rounded-md p-2 text-white"
+              />
+            </div>
+            
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 text-red-400 text-sm p-3 bg-red-500/10 border border-red-500/20 rounded-md">
+                {error}
+              </div>
+            )}
+            
+            {/* Submit Button */}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiSend className="mr-2" />
+                    <span>{initialData ? 'Update Post' : 'Publish Post'}</span>
+                  </>
                 )}
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className={`${
-                    simplified ? 'w-full' : ''
-                  } px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-colors flex items-center justify-center disabled:opacity-70`}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      {initialData ? 'Updating...' : 'Posting...'}
-                    </>
-                  ) : (
-                    <>
-                      {initialData ? 'Update Post' : simplified ? 'Post' : 'Create Post'}
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+              </button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
