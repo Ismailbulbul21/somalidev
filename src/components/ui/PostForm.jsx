@@ -58,6 +58,19 @@ const PostForm = ({
     }
   }, [preSelectedCategory]);
   
+  // Automatically advance to step 2 when preSelectedCategory is provided
+  useEffect(() => {
+    // If we have a categoryId and we're on step 1, and the categoryId came from preSelectedCategory
+    if (categoryId && step === 1 && preSelectedCategory) {
+      // Move to step 2 after a short delay to ensure the state has updated
+      const timer = setTimeout(() => {
+        setStep(2);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [categoryId, step, preSelectedCategory]);
+  
   // Update character count when content changes
   useEffect(() => {
     setCharCount(content.length);

@@ -748,8 +748,16 @@ export const createPost = async (post) => {
         title: post.get('title'),
         content: post.get('content'),
         post_type: post.get('post_type'),
-        category_id: post.get('category_id')
+        category_id: post.get('category_id'),
+        profile_id: supabase.auth.getUser().then(({ data }) => data.user.id) // This won't work - async
       };
+      
+      // Get the current user and set profile_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('You must be logged in to create a post');
+      
+      // Set profile_id to the user's ID
+      postData.profile_id = user.id;
       
       // Handle tags if present
       const tags = post.get('tags');
@@ -766,6 +774,13 @@ export const createPost = async (post) => {
     } else {
       // If not FormData, use as is
       postData = { ...post };
+      
+      // If profile_id is not provided, set it to the current user's ID
+      if (!postData.profile_id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('You must be logged in to create a post');
+        postData.profile_id = user.id;
+      }
     }
     
     // Validate required fields
