@@ -145,17 +145,17 @@ const PostCard = ({ post, onDelete }) => {
       <div className="p-4 flex items-start">
         {/* Author Avatar */}
         <div className="flex-shrink-0 mr-3">
-          <Link to={`/profile/${post.profiles?.username || post.user_id}`}>
+          <Link to={`/profile/${post.profiles?.username || post.user_id || post.profile_id}`}>
             <div className="w-10 h-10 bg-gray-800 rounded-full overflow-hidden">
-              {post.profiles?.avatar_url ? (
+              {post.author_avatar || post.profiles?.avatar_url ? (
                 <img 
-                  src={post.profiles.avatar_url} 
-                  alt={post.profiles.full_name || 'User'}
+                  src={post.author_avatar || post.profiles?.avatar_url}
+                  alt={post.author_name || post.profiles?.full_name || 'User'}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white font-bold">
-                  {post.profiles?.full_name ? post.profiles.full_name[0].toUpperCase() : '?'}
+                <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white font-medium">
+                  {post.author_name?.[0]?.toUpperCase() || post.profiles?.full_name?.[0]?.toUpperCase() || '?'}
                 </div>
               )}
             </div>
@@ -168,10 +168,10 @@ const PostCard = ({ post, onDelete }) => {
             {/* Author and Post Type */}
             <div>
               <Link 
-                to={`/profile/${post.profiles?.username || post.user_id}`}
+                to={`/profile/${post.profiles?.username || post.user_id || post.profile_id}`}
                 className="font-medium text-white hover:text-purple-400 transition-colors mr-2"
               >
-                {post.profiles?.full_name || 'Anonymous User'}
+                {post.author_name || post.profiles?.full_name || 'Anonymous User'}
               </Link>
               
               {/* Post Type Badge */}

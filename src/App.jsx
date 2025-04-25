@@ -40,6 +40,7 @@ const App = () => {
               <Route path="messages/:id" element={<Messages />} />
               <Route path="messages" element={<Messages />} />
               <Route path="community" element={<Community />} />
+              <Route path="community/post/:id" element={<PostDetail />} />
               <Route path="posts/:id" element={<PostDetail />} />
               <Route path="signin" element={<SignIn />} />
               <Route path="signup" element={<SignUp />} />
