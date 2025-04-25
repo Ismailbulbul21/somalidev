@@ -264,111 +264,202 @@ const Community = () => {
         </div>
         
         {/* Actions and Filters */}
-        <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
-          <div className="w-full md:w-auto">
-            {user ? (
-              <button
-                onClick={() => setShowNewPostForm(!showNewPostForm)}
-                className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                </svg>
-                {showNewPostForm ? 'Cancel' : 'Create New Post'}
-              </button>
-            ) : (
-              <Link
-                to="/signin"
-                className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
-                Sign In to Post
-              </Link>
-            )}
-          </div>
-          
-          <div className="w-full md:w-auto flex flex-wrap items-center gap-3">
-            {/* Search input */}
-            <div className="relative w-full md:w-auto">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search posts..."
-                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 pl-10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
-              />
-              <svg 
-                className="absolute left-3 top-3 w-4 h-4 text-gray-400" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+        <div className="mb-8 bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* New Post Button */}
+            <div className="w-full md:w-auto">
+              {user ? (
+                <button
+                  onClick={() => setShowNewPostForm(!showNewPostForm)}
+                  className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  {showNewPostForm ? 'Cancel' : 'Create New Post'}
+                </button>
+              ) : (
+                <Link
+                  to="/signin"
+                  className="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  Sign In to Post
+                </Link>
+              )}
             </div>
             
-            {/* Type Filter */}
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
-            >
-              {postTypes.map(type => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-            
-            {/* Sort options */}
-            <div className="flex items-center space-x-2">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
-              >
-                {sortOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              
-              <button
-                onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-                className="bg-gray-800 border border-gray-700 text-white rounded-lg p-2 hover:bg-gray-700"
-                aria-label={`Sort ${sortOrder === 'desc' ? 'ascending' : 'descending'}`}
-              >
-                {sortOrder === 'desc' ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+            {/* Filters Group */}
+            <div className="flex-grow">
+              <details className="group w-full" open>
+                <summary className="flex items-center justify-between text-white cursor-pointer mb-2">
+                  <h3 className="text-sm font-medium">Filters & Search</h3>
+                  <svg className="w-5 h-5 group-open:rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
-                  </svg>
-                )}
-              </button>
+                </summary>
+                <div className="mt-2 space-y-3">
+                  {/* Search input */}
+                  <div className="relative w-full">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search posts..."
+                      className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 pl-10 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                    />
+                    <svg 
+                      className="absolute left-3 top-3 w-4 h-4 text-gray-400" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Type Filter */}
+                    <div>
+                      <label htmlFor="postType" className="block text-gray-400 text-sm mb-1">Post Type</label>
+                      <select
+                        id="postType"
+                        value={selectedType}
+                        onChange={(e) => setSelectedType(e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                      >
+                        {postTypes.map(type => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {/* Sort Field */}
+                    <div>
+                      <label htmlFor="sortBy" className="block text-gray-400 text-sm mb-1">Sort By</label>
+                      <select
+                        id="sortBy"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                      >
+                        {sortOptions.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {/* Sort Direction */}
+                    <div>
+                      <label htmlFor="sortOrder" className="block text-gray-400 text-sm mb-1">Sort Direction</label>
+                      <button
+                        id="sortOrder"
+                        onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                        className="w-full flex justify-between items-center bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 hover:bg-gray-750"
+                      >
+                        <span>{sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}</span>
+                        {sortOrder === 'desc' ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Applied filters tags */}
+                  {(selectedType || searchQuery || sortBy !== 'created_at' || sortOrder !== 'desc') && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <div className="text-gray-400 text-sm">Applied Filters:</div>
+                      {selectedType && (
+                        <div className="bg-purple-900/40 text-white text-sm px-3 py-1 rounded-full flex items-center">
+                          <span className="mr-1">Type: {postTypes.find(t => t.value === selectedType)?.label}</span>
+                          <button onClick={() => setSelectedType('')} className="ml-1 text-gray-300 hover:text-white">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      {searchQuery && (
+                        <div className="bg-purple-900/40 text-white text-sm px-3 py-1 rounded-full flex items-center">
+                          <span className="mr-1">Search: {searchQuery}</span>
+                          <button onClick={() => setSearchQuery('')} className="ml-1 text-gray-300 hover:text-white">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      {(sortBy !== 'created_at' || sortOrder !== 'desc') && (
+                        <div className="bg-purple-900/40 text-white text-sm px-3 py-1 rounded-full flex items-center">
+                          <span className="mr-1">
+                            Sort: {sortOptions.find(o => o.value === sortBy)?.label} ({sortOrder === 'desc' ? 'Desc' : 'Asc'})
+                          </span>
+                          <button 
+                            onClick={() => {
+                              setSortBy('created_at');
+                              setSortOrder('desc');
+                            }} 
+                            className="ml-1 text-gray-300 hover:text-white"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      {(selectedType || searchQuery || sortBy !== 'created_at' || sortOrder !== 'desc') && (
+                        <button 
+                          onClick={() => {
+                            setSelectedType('');
+                            setSearchQuery('');
+                            setSortBy('created_at');
+                            setSortOrder('desc');
+                          }}
+                          className="text-purple-400 hover:text-purple-300 text-sm underline"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </details>
             </div>
           </div>
         </div>
         
         {/* New Post Form */}
         {showNewPostForm && (
-          <div className="mb-8">
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mb-8 overflow-hidden"
+          >
             <PostForm 
               preSelectedCategory={selectedCategory}
               onSuccess={handlePostSuccess}
               onCancel={() => setShowNewPostForm(false)}
             />
-          </div>
+          </motion.div>
         )}
         
         {/* Active Category Banner - only shown when a category is selected */}
         {activeCategory && (
-          <div className="mb-8 bg-gray-800/50 border border-gray-700 rounded-lg p-4 flex items-center justify-between">
+          <div className="mb-8 bg-purple-900/20 border border-purple-800/50 rounded-lg p-4 flex items-center justify-between">
             <div className="flex items-center">
               <div className="w-10 h-10 flex items-center justify-center bg-purple-900/60 rounded-full mr-3">
                 {getCategoryIcon(activeCategory.name)}
@@ -393,10 +484,13 @@ const Community = () => {
         {/* Posts List */}
         {loading ? (
           <div className="flex justify-center py-12">
-            <svg className="animate-spin h-10 w-10 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <div className="text-center">
+              <svg className="animate-spin h-10 w-10 text-purple-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-gray-400">Loading posts...</p>
+            </div>
           </div>
         ) : posts.length === 0 ? (
           <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center">
