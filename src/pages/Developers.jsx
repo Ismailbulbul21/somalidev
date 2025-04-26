@@ -94,14 +94,6 @@ const Developers = () => {
         profile.specializations && 
         profile.specializations.includes(selectedSpecialization)
       );
-      
-      // Sort by rating (highest first) when a specialization is selected
-      results.sort((a, b) => {
-        // Handle cases where rating might be missing
-        const ratingA = a.average_rating || 0;
-        const ratingB = b.average_rating || 0;
-        return ratingB - ratingA;
-      });
     }
     
     // Filter by experience level
@@ -126,6 +118,14 @@ const Developers = () => {
         profile.average_rating && profile.average_rating >= minRatingValue
       );
     }
+    
+    // Sort by rating (highest first) for all results
+    results.sort((a, b) => {
+      // Handle cases where rating might be missing
+      const ratingA = a.average_rating || 0;
+      const ratingB = b.average_rating || 0;
+      return ratingB - ratingA;
+    });
     
     setFilteredProfiles(results);
   }, [searchTerm, selectedSkills, selectedSpecialization, experienceLevel, minYearsExperience, minRating, profiles]);
