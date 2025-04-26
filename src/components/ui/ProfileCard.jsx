@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { getSpecializations } from '../../utils/supabaseClient.js';
+import { getSpecializations } from '../../utils/supabaseClient.jsx';
+import { StarRating } from './RatingDisplay';
 
 const ProfileCard = ({ profile, showYearsExperience }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -116,6 +117,16 @@ const ProfileCard = ({ profile, showYearsExperience }) => {
                 </svg>
                 <span className={`${showYearsExperience ? 'font-semibold' : 'font-medium'} text-gray-300`}>
                   {profile.years_of_experience} <span className="text-purple-300 font-bold">{profile.years_of_experience === 1 ? 'year' : 'years'}</span> of experience
+                </span>
+              </div>
+            )}
+            
+            {/* Rating Display */}
+            {profile.average_rating && (
+              <div className="flex justify-center items-center mt-2">
+                <StarRating rating={profile.average_rating} size="sm" />
+                <span className="ml-1 text-gray-400 text-sm">
+                  ({profile.rating_count || 0})
                 </span>
               </div>
             )}

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { addProject, updateProject, uploadImage, getImageUrl } from '../../utils/supabaseClient.js';
+import { addProject, updateProject, uploadImage, getImageUrl } from '../../utils/supabaseClient.jsx';
 import { useAuth } from '../../utils/AuthContext';
 
 const ProjectForm = ({ 

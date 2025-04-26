@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/AuthContext';
-import { getProfile, getImageUrl, addProject, updateProject, supabase } from '../utils/supabaseClient.js';
+import { getProfile, getImageUrl, addProject, updateProject, supabase, getUserRatings, haveExchangedMessages } from '../utils/supabaseClient.jsx';
 import SkillGroup from '../components/ui/SkillGroup';
 import ProjectCard from '../components/ui/ProjectCard';
 import ProjectForm from '../components/ui/ProjectForm';
+import RatingDisplay, { StarRating } from '../components/ui/RatingDisplay';
+import RatingForm from '../components/ui/RatingForm';
 
 const Profile = () => {
   const { id } = useParams();
@@ -16,6 +18,9 @@ const Profile = () => {
   const [error, setError] = useState(null);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
+  const [ratings, setRatings] = useState([]);
+  const [canRate, setCanRate] = useState(false);
+  const [showRatingForm, setShowRatingForm] = useState(false);
   
   const isOwnProfile = id ? user?.id === id : true;
   const profileId = id || user?.id;
@@ -32,6 +37,16 @@ const Profile = () => {
 
         const profileData = await getProfile(profileId);
         setProfile(profileData);
+
+        // Fetch ratings for this profile
+        const ratingsData = await getUserRatings(profileId);
+        setRatings(ratingsData);
+
+        // Check if current user can rate this profile
+        if (user && !isOwnProfile) {
+          const canRateUser = await haveExchangedMessages(user.id, profileId);
+          setCanRate(canRateUser);
+        }
       } catch (error) {
         console.error('Error fetching profile:', error);
         setError('Failed to load profile. Please try again later.');
@@ -41,7 +56,7 @@ const Profile = () => {
     };
 
     fetchProfile();
-  }, [profileId, navigate]);
+  }, [profileId, navigate, user, isOwnProfile]);
 
   // Function to handle project form success
   const handleProjectSave = async (projectData) => {
@@ -134,6 +149,16 @@ const Profile = () => {
     },
   };
 
+  // Function to handle rating submission
+  const handleRatingSubmit = async () => {
+    // Close the rating form
+    setShowRatingForm(false);
+    
+    // Refresh ratings
+    const ratingsData = await getUserRatings(profileId);
+    setRatings(ratingsData);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-16rem)]">
@@ -208,6 +233,16 @@ const Profile = () => {
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold mb-1">{profile.full_name}</h1>
                 <p className="text-gray-300">{profile.title || 'Developer'}</p>
+                
+                {/* Rating Summary */}
+                {profile.average_rating && (
+                  <div className="mt-2 flex justify-center items-center">
+                    <StarRating rating={profile.average_rating} size="md" />
+                    <span className="ml-2 text-gray-300">
+                      ({profile.rating_count || 0})
+                    </span>
+                  </div>
+                )}
                 
                 {/* Experience Level */}
                 {profile.experience_level && (
@@ -286,6 +321,19 @@ const Profile = () => {
                       </svg>
                       Send Message
                     </button>
+                    
+                    {/* Rate Developer Button (if eligible to rate) */}
+                    {canRate && (
+                      <button 
+                        onClick={() => setShowRatingForm(true)}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center justify-center"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                        Rate Developer
+                      </button>
+                    )}
                     
                     {/* Hire Button (if they are available for hire) */}
                     {profile.available_for_hire && (
@@ -400,6 +448,25 @@ const Profile = () => {
                 </motion.p>
               )}
             </motion.section>
+            
+            {/* Ratings Section */}
+            <motion.section
+              className="mt-12"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <motion.div 
+                className="flex justify-between items-center mb-6 border-b border-gray-700 pb-2"
+                variants={itemVariants}
+              >
+                <h2 className="text-2xl font-bold">Ratings & Reviews</h2>
+              </motion.div>
+              
+              <motion.div variants={itemVariants}>
+                <RatingDisplay ratings={ratings} />
+              </motion.div>
+            </motion.section>
           </div>
         </div>
       </div>
@@ -420,6 +487,28 @@ const Profile = () => {
                 project={currentProject}
                 onSuccess={handleProjectSave}
                 onCancel={() => setShowProjectForm(false)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Rating Form Modal */}
+      <AnimatePresence>
+        {showRatingForm && (
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowRatingForm(false)}
+          >
+            {/* Prevent clicking inside the form from closing the modal */}
+            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg">
+              <RatingForm 
+                userId={profileId}
+                onRatingSubmitted={handleRatingSubmit}
+                onCancel={() => setShowRatingForm(false)}
               />
             </div>
           </motion.div>

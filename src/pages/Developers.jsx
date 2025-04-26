@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getProfiles, getSkills, getSpecializations } from '../utils/supabaseClient.js';
+import { getProfiles, getSkills, getSpecializations } from '../utils/supabaseClient.jsx';
 import ProfileCard from '../components/ui/ProfileCard';
 import { Link } from 'react-router-dom';
 import { FiFilter, FiPlus, FiX, FiChevronDown, FiChevronUp, FiSearch, FiClock } from 'react-icons/fi';
@@ -19,6 +19,7 @@ const Developers = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [totalProfiles, setTotalProfiles] = useState(0);
   const [expandedCategories, setExpandedCategories] = useState({});
+  const [minRating, setMinRating] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,7 +66,7 @@ const Developers = () => {
     fetchData();
   }, []);
 
-  // Apply filters when search term, skills, specialization, or experience level changes
+  // Apply filters when search term, skills, specialization, experience level, or rating changes
   useEffect(() => {
     let results = [...profiles];
     
@@ -93,6 +94,14 @@ const Developers = () => {
         profile.specializations && 
         profile.specializations.includes(selectedSpecialization)
       );
+      
+      // Sort by rating (highest first) when a specialization is selected
+      results.sort((a, b) => {
+        // Handle cases where rating might be missing
+        const ratingA = a.average_rating || 0;
+        const ratingB = b.average_rating || 0;
+        return ratingB - ratingA;
+      });
     }
     
     // Filter by experience level
@@ -110,8 +119,16 @@ const Developers = () => {
       );
     }
     
+    // Filter by minimum rating
+    if (minRating) {
+      const minRatingValue = parseInt(minRating);
+      results = results.filter(profile => 
+        profile.average_rating && profile.average_rating >= minRatingValue
+      );
+    }
+    
     setFilteredProfiles(results);
-  }, [searchTerm, selectedSkills, selectedSpecialization, experienceLevel, minYearsExperience, profiles]);
+  }, [searchTerm, selectedSkills, selectedSpecialization, experienceLevel, minYearsExperience, minRating, profiles]);
 
   // Toggle skill selection
   const toggleSkill = (skillId) => {
@@ -155,6 +172,7 @@ const Developers = () => {
     setSelectedSpecialization('');
     setExperienceLevel('');
     setMinYearsExperience('');
+    setMinRating('');
   };
 
   return (
@@ -253,12 +271,35 @@ const Developers = () => {
                       id="experience"
                       value={experienceLevel}
                       onChange={e => setExperienceLevel(e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="">All Levels</option>
+                      <option value="">Any Level</option>
+                      <option value="Junior">Junior</option>
+                      <option value="Mid-level">Mid-level</option>
+                      <option value="Senior">Senior</option>
                       <option value="Bilow">Bilow</option>
                       <option value="Dhexe">Dhexe</option>
                       <option value="Sare">Sare</option>
+                    </select>
+                  </div>
+                  
+                  {/* Minimum rating filter */}
+                  <div>
+                    <label htmlFor="rating" className="block text-sm font-medium text-gray-400 mb-2">
+                      Minimum Rating
+                    </label>
+                    <select
+                      id="rating"
+                      value={minRating}
+                      onChange={e => setMinRating(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">Any Rating</option>
+                      <option value="5">5 Stars</option>
+                      <option value="4">4+ Stars</option>
+                      <option value="3">3+ Stars</option>
+                      <option value="2">2+ Stars</option>
+                      <option value="1">1+ Star</option>
                     </select>
                   </div>
                   
@@ -307,7 +348,7 @@ const Developers = () => {
                   </div>
                   
                   {/* Reset filters button */}
-                  {(searchTerm || selectedSkills.length > 0 || selectedSpecialization || experienceLevel || minYearsExperience) && (
+                  {(searchTerm || selectedSkills.length > 0 || selectedSpecialization || experienceLevel || minYearsExperience || minRating) && (
                     <button
                       onClick={handleReset}
                       className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm flex items-center justify-center transition-colors"
@@ -380,7 +421,7 @@ const Developers = () => {
         </AnimatePresence>
 
         {/* Selected Filters Summary */}
-        {(selectedSkills.length > 0 || selectedSpecialization || experienceLevel || minYearsExperience) && (
+        {(selectedSkills.length > 0 || selectedSpecialization || experienceLevel || minYearsExperience || minRating) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -443,6 +484,18 @@ const Developers = () => {
                 <button 
                   onClick={() => setMinYearsExperience('')}
                   className="ml-2 text-amber-300 hover:text-white"
+                >
+                  <FiX className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            
+            {minRating && (
+              <div className="bg-teal-900/40 text-teal-200 border border-teal-700/50 pl-3 pr-2 py-1 rounded-md text-sm flex items-center">
+                {minRating}+ stars
+                <button 
+                  onClick={() => setMinRating('')}
+                  className="ml-2 text-teal-300 hover:text-white"
                 >
                   <FiX className="w-3.5 h-3.5" />
                 </button>

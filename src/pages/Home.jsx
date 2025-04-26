@@ -9,6 +9,7 @@ import { useAuth } from '../utils/AuthContext';
 const Home = () => {
   const [categories, setCategories] = useState([]);
   const [featuredDevs, setFeaturedDevs] = useState([]);
+  const [topRatedDevs, setTopRatedDevs] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -20,9 +21,23 @@ const Home = () => {
         setCategories(categoriesData);
 
         // Fetch featured developers
-        const profilesData = await getProfiles();
-        // Just take the first 3 profiles as featured
-        setFeaturedDevs(profilesData.slice(0, 3));
+        const profilesData = await getProfiles([], {
+          limit: 3
+        });
+        setFeaturedDevs(profilesData);
+
+        // Fetch top rated developers
+        const topRatedData = await getProfiles([], {
+          sortBy: 'average_rating',
+          sortOrder: 'desc',
+          limit: 3
+        });
+        
+        // Only include profiles with ratings
+        const ratedProfiles = topRatedData.filter(profile => 
+          profile.average_rating && profile.rating_count > 0
+        );
+        setTopRatedDevs(ratedProfiles);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -89,9 +104,47 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Developers */}
-      {featuredDevs.length > 0 && (
+      {/* Top Rated Developers - Moved to appear first */}
+      {topRatedDevs.length > 0 && (
         <section className="py-16 bg-gray-900/50">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <div className="flex justify-between items-center mb-12">
+                <h2 className="text-3xl font-bold">Top Rated Developers</h2>
+                <Link
+                  to="/developers"
+                  className="text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1"
+                >
+                  View All
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {topRatedDevs.map((profile) => (
+                    <ProfileCard key={profile.id} profile={profile} />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {/* Featured Developers - Moved to appear second */}
+      {featuredDevs.length > 0 && (
+        <section className="py-16">
           <div className="container mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}

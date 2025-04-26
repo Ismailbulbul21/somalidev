@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../utils/AuthContext';
-import { addComment } from '../../utils/supabaseClient.jsx';
+import { addComment, updateComment } from '../../utils/supabaseClient.jsx';
 
 const CommentForm = ({ 
   postId, 

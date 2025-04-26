@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { sendMessage, getMessages, getProfile } from '../utils/supabaseClient.js';
+import { sendMessage, getMessages, getProfile, getUserRatingFor } from '../utils/supabaseClient.jsx';
 import { useAuth } from '../utils/AuthContext';
 import { useMessages } from '../utils/MessagesContext';
 import { motion } from 'framer-motion';
 import { FiSend, FiArrowLeft, FiUser, FiMessageCircle, FiRefreshCw } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
+import RatingForm from '../components/ui/RatingForm';
 
 const Messages = () => {
   const { id: urlContactId } = useParams();
@@ -30,6 +31,9 @@ const Messages = () => {
   const [contactInfo, setContactInfo] = useState(null);
   const [profilesCache, setProfilesCache] = useState({});
   const [refreshing, setRefreshing] = useState(false);
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false);
+  const [hasRated, setHasRated] = useState(false);
+  const [contactRated, setContactRated] = useState(false);
   
   const messagesEndRef = useRef(null);
   const isInitialMount = useRef(true);
@@ -250,6 +254,43 @@ const Messages = () => {
     // Scroll to bottom when messages change
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Check if the current user has already rated the contact
+  useEffect(() => {
+    const checkRatingStatus = async () => {
+      if (user && contactId) {
+        try {
+          // Check if user has rated contact
+          const userRating = await getUserRatingFor(user.id, contactId);
+          setHasRated(!!userRating);
+          
+          // Check if contact has rated user
+          const contactRating = await getUserRatingFor(contactId, user.id);
+          setContactRated(!!contactRating);
+          
+          // Show rating prompt if 3+ messages exchanged and user hasn't rated contact
+          const shouldShowPrompt = messages.length >= 3 && !userRating;
+          setShowRatingPrompt(shouldShowPrompt);
+        } catch (error) {
+          console.error('Error checking rating status:', error);
+        }
+      }
+    };
+    
+    if (messages.length >= 3) {
+      checkRatingStatus();
+    }
+  }, [user, contactId, messages]);
+
+  // Function to handle rating submission
+  const handleRatingSubmitted = () => {
+    setShowRatingPrompt(false);
+    setHasRated(true);
+    // Update the messages list to remove the rating prompt
+    setMessages(prev => prev.filter(m => m.id !== 'rating-prompt'));
+    // Show a success toast
+    toast.success('Rating submitted successfully!');
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -520,68 +561,129 @@ const Messages = () => {
                 key={msg.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${
+                  msg.is_rating_prompt 
+                    ? 'justify-center' 
+                    : msg.sender_id === user?.id 
+                      ? 'justify-end' 
+                      : 'justify-start'
+                }`}
               >
-                <div className="flex max-w-[80%]">
-                  {msg.sender_id !== user.id && (
-                    <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 mr-2 overflow-hidden">
-                      {getAvatarUrl(msg.sender_id) ? (
-                        <img 
-                          src={getAvatarUrl(msg.sender_id)} 
-                          alt={getDisplayName(msg.sender_id)} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-xs font-semibold text-gray-600 flex items-center justify-center h-full">
-                          {getDisplayName(msg.sender_id)[0] || '?'}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div
-                    className={`
-                      rounded-lg px-4 py-2 break-words
-                      ${msg.sender_id === user.id ? 
-                        'bg-purple-600 text-white ml-2' : 
-                        'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-                      }
-                    `}
-                  >
-                    <p>{msg.content}</p>
-                    <div 
-                      className={`text-xs mt-1 ${
-                        msg.sender_id === user.id ? 
-                          'text-purple-200' : 
-                          'text-gray-500 dark:text-gray-400'
-                      }`}
-                    >
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
+                {msg.is_rating_prompt ? (
+                  <div className="w-full max-w-md">
+                    <RatingForm
+                      userId={contactId}
+                      onRatingSubmitted={handleRatingSubmitted}
+                      onCancel={() => {
+                        setMessages(prev => prev.filter(m => m.id !== 'rating-prompt'));
+                      }}
+                      small={true}
+                    />
                   </div>
-                  
-                  {msg.sender_id === user.id && (
-                    <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 ml-2 overflow-hidden">
-                      {getAvatarUrl(msg.sender_id) ? (
-                        <img 
-                          src={getAvatarUrl(msg.sender_id)} 
-                          alt={getDisplayName(msg.sender_id)} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-xs font-semibold text-gray-600 flex items-center justify-center h-full">
-                          {getDisplayName(msg.sender_id)[0] || '?'}
-                        </span>
-                      )}
+                ) : (
+                  <div className="flex max-w-[80%]">
+                    {msg.sender_id !== user?.id && (
+                      <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 mr-2 overflow-hidden">
+                        {getAvatarUrl(msg.sender_id) ? (
+                          <img 
+                            src={getAvatarUrl(msg.sender_id)} 
+                            alt={getDisplayName(msg.sender_id)} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs font-semibold text-gray-600 flex items-center justify-center h-full">
+                            {getDisplayName(msg.sender_id)[0] || '?'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div
+                      className={`
+                        rounded-lg px-4 py-2 break-words
+                        ${msg.sender_id === user?.id ? 
+                          'bg-purple-600 text-white ml-2' : 
+                          'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                        }
+                      `}
+                    >
+                      <p>{msg.content}</p>
+                      <div 
+                        className={`text-xs mt-1 ${
+                          msg.sender_id === user?.id ? 
+                            'text-purple-200' : 
+                            'text-gray-500 dark:text-gray-400'
+                        }`}
+                      >
+                        {formatDate(msg.created_at)}
+                      </div>
                     </div>
-                  )}
-                </div>
+                    
+                    {msg.sender_id === user?.id && (
+                      <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 ml-2 overflow-hidden">
+                        {getAvatarUrl(msg.sender_id) ? (
+                          <img 
+                            src={getAvatarUrl(msg.sender_id)} 
+                            alt={getDisplayName(msg.sender_id)} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs font-semibold text-gray-600 flex items-center justify-center h-full">
+                            {getDisplayName(msg.sender_id)[0] || '?'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
             ))}
             <div ref={messagesEndRef} />
           </div>
         )}
       </div>
+      
+      {/* Rating Prompt */}
+      {showRatingPrompt && contactInfo && (
+        <div className="mx-4 mb-4">
+          <div className="bg-blue-900/40 border border-blue-700/60 rounded-lg p-4">
+            <div className="flex items-center mb-2">
+              <svg className="w-5 h-5 text-blue-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118l-2.799-2.034c-.784-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              <h3 className="font-medium text-white">How was your experience with {contactInfo.full_name}?</h3>
+            </div>
+            
+            <div className="flex space-x-4">
+              <button 
+                onClick={() => setShowRatingPrompt(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
+              >
+                Maybe Later
+              </button>
+              <button 
+                onClick={() => {
+                  setMessages(prev => [
+                    ...prev,
+                    {
+                      id: 'rating-prompt',
+                      sender_id: null,
+                      recipient_id: null,
+                      content: 'Rate this developer',
+                      created_at: new Date().toISOString(),
+                      is_rating_prompt: true
+                    }
+                  ]);
+                  setShowRatingPrompt(false);
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+              >
+                Rate Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Message input */}
       <form onSubmit={handleSend} className="flex gap-2">

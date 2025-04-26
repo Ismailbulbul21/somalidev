@@ -84,90 +84,82 @@ export const getSkills = async (category) => {
     return data;
 };
 
-export const getProfiles = async (category) => {
-    console.log('getProfiles called with category:', category);
-
-    try {
-        // Step 1: Get all profiles with their skills
-        const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select(`
-                *,
-                profile_skills(
-                    *,
-                    skills(*)
-                )
-            `);
-
-        if (profilesError) {
-            console.error('Error fetching profiles:', profilesError);
-            throw profilesError;
-        }
-
-        console.log(`Retrieved ${profiles?.length || 0} profiles`);
-
-        // If no category specified, return all profiles
-        if (!category) {
-            return profiles || [];
-        }
-
-        // Step 2: Get category ID if it exists - we need this for primary_categories matching
-        let categoryId = null;
-        try {
-            // First check if it's a valid UUID - if so, use it directly
-            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category)) {
-                categoryId = category;
-                console.log(`Using provided category ID: ${categoryId}`);
-            } else {
-                // Otherwise, try to find category ID by name
-                const { data: categoryData } = await supabase
-                    .from('categories')
-                    .select('id')
-                    .ilike('name', category)
-                    .maybeSingle();
-
-                if (categoryData) {
-                    categoryId = categoryData.id;
-                    console.log(`Found category ID for "${category}": ${categoryId}`);
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching category ID:', error);
-            // Continue without categoryId
-        }
-
-        // Step 3: Filter profiles that match either:
-        // 1. Have a skill with matching category name, OR
-        // 2. Have the category ID in their primary_categories
-        const filteredProfiles = profiles.filter(profile => {
-            // Check for skills in the category
-            const hasSkillInCategory = profile.profile_skills &&
-                profile.profile_skills.some(ps => ps.skills && ps.skills.category === category);
-
-            // Check for category in primary_categories (if we have categoryId)
-            const hasPrimaryCategory = categoryId &&
-                profile.primary_categories &&
-                Array.isArray(profile.primary_categories) &&
-                profile.primary_categories.includes(categoryId);
-
-            // Debug info
-            if (hasSkillInCategory || hasPrimaryCategory) {
-                console.log(`Profile "${profile.full_name}" matches category "${category}":`, {
-                    hasSkillInCategory,
-                    hasPrimaryCategory,
-                    skills: profile.profile_skills?.map(ps => ps.skills?.name)
-                });
-            }
-
-            return hasSkillInCategory || hasPrimaryCategory;
-        });
-
-        console.log(`Filtered to ${filteredProfiles.length} profiles in category '${category}'`);
-        return filteredProfiles;
-    } catch (error) {
-        console.error('Exception in getProfiles:', error);
-        return [];
+/**
+ * Get all profiles or specific profiles by IDs
+ * @param {Array} ids - Optional array of profile IDs
+ * @param {Object} options - Additional options
+ * @param {string} options.sortBy - Field to sort by ('rating', 'created_at', etc.)
+ * @param {string} options.sortOrder - Sort order ('asc' or 'desc')
+ * @param {number} options.limit - Maximum number of profiles to return
+ * @param {string} options.specialization - Optional specialization ID to filter by
+ * @returns {Promise<Array>} Array of profile objects
+ */
+export const getProfiles = async (ids = [], options = {}) => {
+  try {
+    const { 
+      sortBy = 'created_at', 
+      sortOrder = 'desc', 
+      limit = null,
+      specialization = null
+    } = options;
+    
+    let query = supabase
+      .from('profiles')
+      .select(`
+        *,
+        profile_skills (
+          id,
+          skill_id,
+          proficiency_level,
+          is_learning,
+          skills (
+            id, 
+            name,
+            category
+          )
+        ),
+        projects (
+          id,
+          title,
+          description,
+          thumbnail_url,
+          github_url,
+          live_url,
+          created_at,
+          project_skills (
+            skills (
+              name
+            )
+          )
+        )
+      `);
+    
+    // Apply filters
+    if (ids && ids.length > 0) {
+      query = query.in('id', ids);
     }
+    
+    if (specialization) {
+      query = query.contains('specializations', [specialization]);
+    }
+    
+    // Apply sorting
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+    
+    // Apply limit if specified
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching profiles:', error);
+    return [];
+  }
 };
 
 export const getProfile = async (id) => {
@@ -1504,5 +1496,178 @@ export const getUserFollowing = async (userId) => {
   } catch (error) {
     console.error('Exception in getUserFollowing:', error);
     return [];
+  }
+};
+
+// Ratings Functions
+
+/**
+ * Get a specific rating from one user to another
+ * @param {string} raterId - The ID of the user who gave the rating
+ * @param {string} ratedId - The ID of the user who received the rating
+ * @returns {Promise<Object|null>} - The rating object or null if not found
+ */
+export const getUserRatingFor = async (raterId, ratedId) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_ratings')
+      .select('*')
+      .eq('rater_id', raterId)
+      .eq('rated_id', ratedId)
+      .maybeSingle();
+      
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching user rating:', error);
+    return null;
+  }
+};
+
+/**
+ * Create or update a rating
+ * @param {string} raterId - The ID of the user giving the rating
+ * @param {string} ratedId - The ID of the user being rated
+ * @param {number} ratingValue - The rating value (1-5)
+ * @param {string} comment - Optional comment with the rating
+ * @returns {Promise<Object>} - The created or updated rating
+ */
+export const createOrUpdateRating = async (raterId, ratedId, ratingValue, comment = null) => {
+  try {
+    // Check if a rating already exists
+    const existingRating = await getUserRatingFor(raterId, ratedId);
+    
+    if (existingRating) {
+      // Update existing rating
+      const { data, error } = await supabase
+        .from('user_ratings')
+        .update({
+          rating_value: ratingValue,
+          comment: comment,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingRating.id)
+        .select();
+        
+      if (error) throw error;
+      return data;
+    } else {
+      // Create new rating
+      const { data, error } = await supabase
+        .from('user_ratings')
+        .insert({
+          rater_id: raterId,
+          rated_id: ratedId,
+          rating_value: ratingValue,
+          comment: comment
+        })
+        .select();
+        
+      if (error) throw error;
+      return data;
+    }
+  } catch (error) {
+    console.error('Error creating/updating rating:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all ratings for a user
+ * @param {string} userId - The ID of the user to get ratings for
+ * @returns {Promise<Array>} - Array of rating objects with rater profile info
+ */
+export const getUserRatings = async (userId) => {
+  try {
+    // First get the ratings
+    const { data: ratingsData, error: ratingsError } = await supabase
+      .from('user_ratings')
+      .select('*')
+      .eq('rated_id', userId)
+      .order('created_at', { ascending: false });
+      
+    if (ratingsError) throw ratingsError;
+    
+    if (!ratingsData || ratingsData.length === 0) return [];
+    
+    // Then get the rater profiles
+    const raterIds = ratingsData.map(rating => rating.rater_id);
+    
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, title')
+      .in('id', raterIds);
+      
+    if (profilesError) throw profilesError;
+    
+    // Combine the data
+    const ratingsWithProfiles = ratingsData.map(rating => {
+      const raterProfile = profilesData.find(profile => profile.id === rating.rater_id);
+      return {
+        ...rating,
+        rater: raterProfile
+      };
+    });
+    
+    return ratingsWithProfiles;
+  } catch (error) {
+    console.error('Error fetching user ratings:', error);
+    return [];
+  }
+};
+
+/**
+ * Delete a rating
+ * @param {string} ratingId - The ID of the rating to delete
+ * @returns {Promise<boolean>} - Success status
+ */
+export const deleteRating = async (ratingId) => {
+  try {
+    const { error } = await supabase
+      .from('user_ratings')
+      .delete()
+      .eq('id', ratingId);
+      
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting rating:', error);
+    return false;
+  }
+};
+
+/**
+ * Check if two users have exchanged messages (required before rating)
+ * @param {string} userId1 - First user ID
+ * @param {string} userId2 - Second user ID
+ * @returns {Promise<boolean>} - Whether they've exchanged messages
+ */
+export const haveExchangedMessages = async (userId1, userId2) => {
+  try {
+    // Check if userId1 has sent messages to userId2
+    const { data: messages1, error: error1 } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('sender_id', userId1)
+      .eq('recipient_id', userId2)
+      .limit(1);
+      
+    if (error1) throw error1;
+    
+    // Check if userId2 has sent messages to userId1
+    const { data: messages2, error: error2 } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('sender_id', userId2)
+      .eq('recipient_id', userId1)
+      .limit(1);
+      
+    if (error2) throw error2;
+    
+    // Return true if both have exchanged at least one message
+    return messages1.length > 0 && messages2.length > 0;
+  } catch (error) {
+    console.error('Error checking message exchange:', error);
+    return false;
   }
 };
