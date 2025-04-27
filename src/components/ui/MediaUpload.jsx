@@ -52,7 +52,7 @@ const MediaUpload = ({
     <div className="w-full">
       {/* Media Preview */}
       {mediaPreview ? (
-        <div className="relative aspect-video rounded-md overflow-hidden bg-gray-800 border border-gray-700 mb-6">
+        <div className="relative aspect-video rounded-md overflow-hidden bg-gray-800 border border-gray-700 mb-8">
           <img 
             src={mediaPreview} 
             alt="Preview" 

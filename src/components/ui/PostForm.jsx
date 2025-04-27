@@ -282,7 +282,7 @@ const PostForm = ({
   
   // Render the simplified form for sidebar
   return (
-    <div className={`w-full space-y-5 ${mediaPreview ? 'pb-16 md:pb-0' : ''}`}>
+    <div className={`w-full space-y-5 relative ${mediaPreview ? 'pb-20' : ''}`}>
       {/* Title Input */}
       <div>
         <input
@@ -306,50 +306,49 @@ const PostForm = ({
         />
         <div className="flex justify-end mt-2 text-sm text-gray-400">
           <span>{charCount} characters</span>
-              </div>
-            </div>
-            
-            {/* Category Selection */}
+        </div>
+      </div>
+      
+      {/* Category Selection */}
       <div className="relative">
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
           className="w-full bg-gray-800/60 text-white border border-gray-700/60 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none cursor-pointer"
-              >
-                <option value="">Select a category</option>
-          {categories
-            .map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+        >
+          <option value="">Select a category</option>
+          {categories.map(category => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
         <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
           <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
           </svg>
-              </div>
-            </div>
-            
-            {/* Media Upload */}
+        </div>
+      </div>
+      
+      {/* Media Upload */}
       <div>
-              <MediaUpload
-                mediaFile={mediaFile}
-                mediaPreview={mediaPreview}
+        <MediaUpload
+          mediaFile={mediaFile}
+          mediaPreview={mediaPreview}
           onFileSelect={handleFileSelect}
           onRemove={handleRemoveMedia}
-              />
-            </div>
-            
-            {/* Error Message */}
-            {error && (
+        />
+      </div>
+      
+      {/* Error Message */}
+      {error && (
         <div className="text-red-400 text-sm bg-red-900/20 border border-red-800/30 rounded-lg p-3">
-                {error}
-              </div>
-            )}
-            
+          {error}
+        </div>
+      )}
+      
       {/* Submit and Cancel Buttons */}
-      <div className={`flex space-x-3 justify-end ${mediaPreview ? 'fixed bottom-0 left-0 right-0 bg-gray-900 p-4 border-t border-gray-700 backdrop-blur-sm z-50 md:static md:bg-transparent md:border-0 md:p-0 md:mt-5' : 'pt-3'}`}>
+      <div className={`flex space-x-3 justify-end ${mediaPreview ? 'sticky bottom-0 left-0 right-0 bg-gray-900/95 p-4 border-t border-gray-700 backdrop-blur-sm z-50 mt-4' : 'pt-3'}`}>
         {onCancel && (
           <button
             type="button"
@@ -359,29 +358,29 @@ const PostForm = ({
             Cancel
           </button>
         )}
-              <button
+        <button
           type="button"
           onClick={handleSubmit}
-                disabled={isLoading}
+          disabled={isLoading}
           className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center space-x-2 text-base font-medium"
-              >
-                {isLoading ? (
-                  <>
+        >
+          {isLoading ? (
+            <>
               <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
               <span>Posting...</span>
-                  </>
-                ) : (
-                  <>
+            </>
+          ) : (
+            <>
               <FiSend className="h-5 w-5" />
               <span>Post</span>
-                  </>
-                )}
-              </button>
-            </div>
-        </div>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
   );
 };
 
