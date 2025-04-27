@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { getCategories, getProfiles } from '../utils/supabaseClient.jsx';
+import { getProfiles } from '../utils/supabaseClient.jsx';
 import ProfileCard from '../components/ui/ProfileCard';
-import CategoryCard from '../components/ui/CategoryCard';
 import { useAuth } from '../utils/AuthContext';
 
 const Home = () => {
-  const [categories, setCategories] = useState([]);
   const [featuredDevs, setFeaturedDevs] = useState([]);
   const [topRatedDevs, setTopRatedDevs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,10 +14,6 @@ const Home = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch categories
-        const categoriesData = await getCategories();
-        setCategories(categoriesData);
-
         // Fetch featured developers
         const profilesData = await getProfiles([], {
           limit: 3
@@ -172,46 +166,6 @@ const Home = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {featuredDevs.map((profile) => (
                     <ProfileCard key={profile.id} profile={profile} />
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          </div>
-        </section>
-      )}
-
-      {/* Categories Section */}
-      {categories.length > 0 && (
-        <section className="py-16">
-          <div className="container mx-auto px-4">
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              <div className="flex justify-between items-center mb-12">
-                <h2 className="text-3xl font-bold">Browse by Category</h2>
-                <Link
-                  to="/categories"
-                  className="text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1"
-                >
-                  View All
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
-
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {categories.slice(0, 4).map((category, index) => (
-                    <motion.div key={category.id} variants={itemVariants}>
-                      <CategoryCard category={category} index={index} />
-                    </motion.div>
                   ))}
                 </div>
               )}

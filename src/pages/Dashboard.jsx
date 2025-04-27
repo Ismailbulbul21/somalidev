@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../utils/AuthContext';
 import { getProfile, getMessages } from '../utils/supabaseClient.js';
+import SyncCategoriesButton from '../components/ui/SyncCategoriesButton';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -143,6 +144,19 @@ const Dashboard = () => {
         >
           Dashboard
         </motion.h1>
+
+        {/* Admin Section - Only visible for admin users */}
+        {profile && profile.role === 'admin' && (
+          <motion.div
+            className="bg-gray-800/60 backdrop-blur-sm p-6 rounded-lg border border-gray-700 shadow-lg mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-xl font-bold mb-4 text-purple-400">Admin Tools</h2>
+            <SyncCategoriesButton />
+          </motion.div>
+        )}
 
         {/* Welcome Section */}
         <motion.div 

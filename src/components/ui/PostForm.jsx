@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiCode, FiLink, FiEdit3, FiX, FiArrowLeft, FiSend } from 'react-icons/fi';
+import { FiEdit3, FiX, FiSend } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useAuth } from '../../utils/AuthContext';
-import { createPost, updatePost, getCategories } from '../../utils/supabaseClient.jsx';
-import TagsInput from './TagsInput';
+import { createPost, updatePost } from '../../utils/supabaseClient.jsx';
+import { getCategories, convertCategoryId } from '../../utils/categoryUtils.js';
 import MediaUpload from './MediaUpload';
+import { supabase } from '../../utils/supabaseClient.jsx';
 
 const PostForm = ({ 
   initialData = null, 
   preSelectedCategory = null, 
-  onSuccess = null,
+  onPostCreated = null,
   onCancel = null,
   simplified = false
 }) => {
@@ -21,7 +22,6 @@ const PostForm = ({
   const [title, setTitle] = useState(initialData?.title || '');
   const [content, setContent] = useState(initialData?.content || '');
   const [tags, setTags] = useState(initialData?.tags || []);
-  const [postType, setPostType] = useState(initialData?.post_type || 'discussion');
   const [categoryId, setCategoryId] = useState(initialData?.category_id || preSelectedCategory || '');
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(initialData?.media_url || null);
@@ -31,8 +31,6 @@ const PostForm = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [charCount, setCharCount] = useState(0);
-  const [expanded, setExpanded] = useState(!!initialData || !simplified);
-  const [step, setStep] = useState(1);
   
   // Fetch categories when component mounts
   useEffect(() => {
@@ -54,334 +52,336 @@ const PostForm = ({
   // Set preselected category if provided
   useEffect(() => {
     if (preSelectedCategory) {
+      console.log(`Setting preSelectedCategory: ${preSelectedCategory}`);
       setCategoryId(preSelectedCategory);
-    }
-  }, [preSelectedCategory]);
-  
-  // Automatically advance to step 2 when preSelectedCategory is provided
-  useEffect(() => {
-    // If we have a categoryId and we're on step 1, and the categoryId came from preSelectedCategory
-    if (categoryId && step === 1 && preSelectedCategory) {
-      // Move to step 2 after a short delay to ensure the state has updated
-      const timer = setTimeout(() => {
-        setStep(2);
-      }, 100);
       
-      return () => clearTimeout(timer);
+      // Verify this category exists
+      const checkCategory = async () => {
+        // Check if it's in our loaded categories first
+        const existingCategory = categories.find(cat => cat.id === preSelectedCategory);
+        if (existingCategory) {
+          console.log(`Found preselected category in local list: ${existingCategory.name}`);
+          return;
+        }
+        
+        // If not found locally, check the database
+        try {
+          const { data } = await supabase
+            .from('categories')
+            .select('id, name')
+            .eq('id', preSelectedCategory)
+            .single();
+            
+          if (data) {
+            console.log(`Found preselected category in database: ${data.name}`);
+            // Refresh our categories list
+            const allCategories = await getCategories();
+            if (allCategories) {
+              setCategories(allCategories);
+            }
+          } else {
+            console.log('Preselected category not found, using fallback');
+          }
+        } catch (error) {
+          console.error('Error checking preselected category:', error);
+        }
+      };
+      
+      if (categories.length > 0) {
+        checkCategory();
+      }
     }
-  }, [categoryId, step, preSelectedCategory]);
+  }, [preSelectedCategory, categories.length]);
   
   // Update character count when content changes
   useEffect(() => {
     setCharCount(content.length);
   }, [content]);
   
-  // Handle post submission
+  // Handle submit
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    
+    try {
+      setIsLoading(true);
     setError(null);
     
-    // Validate form - make sure to properly trim and check title
-    const trimmedTitle = title ? title.trim() : '';
-    const trimmedContent = content ? content.trim() : '';
+      // Validate inputs
+      const trimmedTitle = title.trim();
+      const trimmedContent = content.trim();
     
     if (!trimmedTitle) {
-      setError('Please enter a title');
+        setError('Please enter a title for your post');
       return;
     }
     
     if (!trimmedContent) {
-      setError('Please enter some content');
+        setError('Please enter some content for your post');
       return;
     }
     
     if (!categoryId) {
-      setError('Please select a category');
+        setError('Please select a category for your post');
       return;
     }
     
-    setIsLoading(true);
-    
-    try {
+      console.log('Submitting post with media file:', mediaFile ? mediaFile.name : 'none');
+      
+      // Verify category is a valid UUID, if not, convert it
+      let finalCategoryId = categoryId;
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId)) {
+        try {
+          console.log('Category ID is not a UUID, attempting conversion:', categoryId);
+          const convertedId = await convertCategoryId(categoryId);
+          
+          if (convertedId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convertedId)) {
+            finalCategoryId = convertedId;
+            console.log('Successfully converted category ID:', finalCategoryId);
+          } else {
+            console.log('Conversion failed, looking for first category');
+            // If conversion fails, try to get the first category
+            const { data: firstCategory } = await supabase
+              .from('categories')
+              .select('id, name')
+              .limit(1)
+              .single();
+              
+            if (firstCategory) {
+              finalCategoryId = firstCategory.id;
+              console.log(`Using first category as fallback: ${firstCategory.name} (${finalCategoryId})`);
+            }
+          }
+        } catch (error) {
+          console.error('Error converting category ID:', error);
+          
+          // Try direct lookup as fallback
+          try {
+            const { data: directCategory } = await supabase
+              .from('categories')
+              .select('id, name')
+              .or(`name.ilike.%${categoryId.replace(/-/g, ' ')}%,id.eq.${categoryId}`)
+              .limit(1);
+              
+            if (directCategory && directCategory.length > 0) {
+              finalCategoryId = directCategory[0].id;
+              console.log(`Found by direct lookup: ${directCategory[0].name} (${finalCategoryId})`);
+            } else {
+              // Last resort get any category
+              const { data: anyCategory } = await supabase
+                .from('categories')
+                .select('id, name')
+                .limit(1)
+                .single();
+                
+              if (anyCategory) {
+                finalCategoryId = anyCategory.id;
+                console.log(`Using any available category: ${anyCategory.name} (${finalCategoryId})`);
+              }
+            }
+          } catch (innerError) {
+            console.error('Error in direct lookup:', innerError);
+          }
+        }
+      }
+      
+      // Prepare form data
       const formData = new FormData();
       formData.append('title', trimmedTitle);
       formData.append('content', trimmedContent);
-      formData.append('post_type', postType);
-      formData.append('category_id', categoryId);
+      formData.append('post_type', 'discussion'); // Default to discussion type
+      formData.append('category_id', finalCategoryId);
       
-      if (tags.length > 0) {
+      if (tags && tags.length > 0) {
         formData.append('tags', JSON.stringify(tags));
       }
       
       if (mediaFile) {
+        console.log('Adding media file to form data:', mediaFile.name, mediaFile.type, mediaFile.size);
         formData.append('media', mediaFile);
       }
       
-      // Either create a new post or update an existing one
+      // Submit the post
       let result;
       if (initialData) {
+        console.log('Updating existing post:', initialData.id);
         result = await updatePost(initialData.id, formData);
         toast.success('Post updated successfully!');
       } else {
+        console.log('Creating new post with form data');
         result = await createPost(formData);
-        toast.success('Post created successfully!');
+        
+        // Ensure result has media_url if it was uploaded
+        if (result && mediaFile && !result.media_url) {
+          console.log('Post created but media_url is missing. Adding from result:', result);
+          // Some implementations might return the URL in a different field
+          if (result._media_url) {
+            result.media_url = result._media_url;
+          }
+        }
+        
+        // Ensure category information is preserved
+        if (result && finalCategoryId) {
+          // Find the category in our local list
+          const category = categories.find(c => c.id === finalCategoryId);
+          if (category && (!result.categories || !result.categories.name)) {
+            console.log('Adding category information to result:', category);
+            result.categories = category;
+            result._categories = {...category};
+          }
+        }
+        
+        toast.success('Post published successfully!');
       }
       
+      console.log('Final post result:', result);
+      
       // Reset form
-      if (!initialData) {
         setTitle('');
         setContent('');
         setTags([]);
         setMediaFile(null);
         setMediaPreview(null);
-        setExpanded(false);
-      }
+      setError(null);
       
-      // Call success callback
-      if (onSuccess) {
-        onSuccess(result);
+      // Call post created callback if provided
+      if (onPostCreated) {
+        onPostCreated(result, initialData ? 'updated' : 'created');
       }
     } catch (error) {
-      console.error('Error submitting post:', error);
-      setError(error.message || 'Something went wrong. Please try again.');
+      console.error('Error creating/updating post:', error);
+      setError(error.message || 'Failed to publish post. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
   
-  // Cancel form
-  const handleCancel = () => {
-    // Reset form state if not editing
-    if (!initialData) {
-      setTitle('');
-      setContent('');
-      setTags([]);
-      setPostType('discussion');
-      setMediaFile(null);
-      setMediaPreview(null);
-      setExpanded(false);
-    }
+  // Handle file selection for media
+  const handleFileSelect = (file) => {
+    setMediaFile(file);
     
-    // Call cancel callback
+    // Create and revoke preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setMediaPreview(previewUrl);
+    
+    // Clean up preview URL when component unmounts
+    return () => URL.revokeObjectURL(previewUrl);
+  };
+  
+  // Handle media removal
+  const handleRemoveMedia = () => {
+    setMediaFile(null);
+    setMediaPreview(null);
+  };
+  
+  // Handle cancel
+  const handleCancel = () => {
     if (onCancel) {
       onCancel();
     }
   };
   
-  // Post type options
-  const postTypes = [
-    { id: 'discussion', label: 'Discussion', icon: <FiEdit3 /> },
-    { id: 'question', label: 'Question', icon: <FiCode /> },
-    { id: 'resource', label: 'Resource', icon: <FiLink /> },
-    { id: 'article', label: 'Article', icon: <FiEdit3 /> },
-    { id: 'project', label: 'Project', icon: <FiCode /> }
-  ];
-  
-  if (!user) {
-    return (
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 text-center">
-        <p className="text-gray-400">Please sign in to create a post</p>
-      </div>
-    );
-  }
-  
-  if (simplified && !expanded) {
-    return (
-      <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden mb-6">
-        <div 
-          className="p-4 flex items-center cursor-pointer"
-          onClick={() => setExpanded(true)}
-        >
-          <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden mr-3">
-            {user.user_metadata?.avatar_url ? (
-              <img 
-                src={user.user_metadata.avatar_url}
-                alt={user.user_metadata?.full_name || 'User'}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-purple-600 text-white font-medium">
-                {user.user_metadata?.full_name?.[0]?.toUpperCase() || '?'}
-              </div>
-            )}
-          </div>
-          <div className="flex-grow bg-gray-800 rounded-full px-4 py-2.5 text-gray-400 hover:bg-gray-750 transition-colors">
-            What's on your mind?
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
+  // Render the simplified form for sidebar
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden mb-6"
-      >
-        <div className="p-4">
-          {/* Form Header */}
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">
-              {initialData ? 'Edit Post' : 'Create Post'}
-            </h3>
-            {(onCancel || simplified) && (
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="text-gray-400 hover:text-white p-1 rounded-full transition-colors"
-              >
-                {simplified ? <FiX size={20} /> : <FiArrowLeft size={20} />}
-              </button>
-            )}
-          </div>
-          
-          {/* Post Form */}
-          <form onSubmit={handleSubmit}>
-            {/* Post Type Selection */}
-            <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">
-                Post Type
-              </label>
-              <div className="grid grid-cols-5 gap-2">
-                {postTypes.map((type) => (
-                  <button
-                    key={type.id}
-                    type="button"
-                    onClick={() => setPostType(type.id)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-md transition-colors ${
-                      postType === type.id
-                        ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
-                        : 'bg-gray-800 text-gray-400 border border-gray-700 hover:bg-gray-750'
-                    }`}
-                  >
-                    <span className="text-xl mb-1">{type.icon}</span>
-                    <span className="text-xs">{type.label}</span>
-                  </button>
-                ))}
+    <div className={`w-full space-y-5 ${mediaPreview ? 'pb-16 md:pb-0' : ''}`}>
+      {/* Title Input */}
+      <div>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What's on your mind?"
+          className="w-full bg-gray-800/60 text-white border border-gray-700/60 rounded-xl p-4 text-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500"
+        />
+      </div>
+      
+      {/* Content Area */}
+      <div>
+        <TextareaAutosize
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Share your thoughts, ask a question, or post an update..."
+          minRows={4}
+          maxRows={12}
+          className="w-full bg-gray-800/60 text-white border border-gray-700/60 rounded-xl p-4 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-500 resize-none"
+        />
+        <div className="flex justify-end mt-2 text-sm text-gray-400">
+          <span>{charCount} characters</span>
               </div>
             </div>
             
             {/* Category Selection */}
-            <div className="mb-4">
-              <label htmlFor="category" className="block text-gray-400 text-sm mb-2">
-                Category
-              </label>
+      <div className="relative">
               <select
-                id="category"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-md p-2.5 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
-                required
+          className="w-full bg-gray-800/60 text-white border border-gray-700/60 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none cursor-pointer"
               >
                 <option value="">Select a category</option>
-                {categories.map((category) => (
+          {categories
+            .map(category => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
                 ))}
               </select>
-            </div>
-            
-            {/* Post Title */}
-            <div className="mb-4">
-              <label htmlFor="title" className="block text-gray-400 text-sm mb-2">
-                Title
-              </label>
-              <input
-                type="text"
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Write a descriptive title..."
-                className="w-full bg-gray-800 border border-gray-700 rounded-md p-3 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
-                required
-              />
-            </div>
-            
-            {/* Post Content */}
-            <div className="mb-4">
-              <label htmlFor="content" className="block text-gray-400 text-sm mb-2">
-                Content
-              </label>
-              <div className="relative">
-                <TextareaAutosize
-                  id="content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Share your thoughts..."
-                  minRows={4}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-md p-3 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none resize-none"
-                  required
-                />
-                <div className="absolute bottom-2 right-2 text-xs text-gray-500">
-                  {charCount > 0 && `${charCount} characters`}
-                </div>
+        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+          </svg>
               </div>
             </div>
             
             {/* Media Upload */}
-            <div className="mb-4">
-              <label className="block text-gray-400 text-sm mb-2">
-                Media (optional)
-              </label>
+      <div>
               <MediaUpload
                 mediaFile={mediaFile}
-                setMediaFile={setMediaFile}
                 mediaPreview={mediaPreview}
-                setMediaPreview={setMediaPreview}
-              />
-            </div>
-            
-            {/* Tags Input */}
-            <div className="mb-4">
-              <label htmlFor="tags" className="block text-gray-400 text-sm mb-2">
-                Tags (optional)
-              </label>
-              <TagsInput
-                tags={tags}
-                setTags={setTags}
-                placeholder="Add tags (press Enter after each tag)"
-                className="bg-gray-800 border border-gray-700 rounded-md p-2 text-white"
+          onFileSelect={handleFileSelect}
+          onRemove={handleRemoveMedia}
               />
             </div>
             
             {/* Error Message */}
             {error && (
-              <div className="mb-4 text-red-400 text-sm p-3 bg-red-500/10 border border-red-500/20 rounded-md">
+        <div className="text-red-400 text-sm bg-red-900/20 border border-red-800/30 rounded-lg p-3">
                 {error}
               </div>
             )}
             
-            {/* Submit Button */}
-            <div className="flex justify-end">
+      {/* Submit and Cancel Buttons */}
+      <div className={`flex space-x-3 justify-end ${mediaPreview ? 'fixed bottom-0 left-0 right-0 bg-gray-900 p-4 border-t border-gray-700 backdrop-blur-sm z-50 md:static md:bg-transparent md:border-0 md:p-0 md:mt-5' : 'pt-3'}`}>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-5 py-2.5 text-gray-300 bg-gray-800/80 hover:bg-gray-700/80 rounded-lg transition-colors text-base"
+          >
+            Cancel
+          </button>
+        )}
               <button
-                type="submit"
+          type="button"
+          onClick={handleSubmit}
                 disabled={isLoading}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg shadow-lg shadow-indigo-500/20 transition-all flex items-center space-x-2 text-base font-medium"
               >
                 {isLoading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Submitting...</span>
+              <span>Posting...</span>
                   </>
                 ) : (
                   <>
-                    <FiSend className="mr-2" />
-                    <span>{initialData ? 'Update Post' : 'Publish Post'}</span>
+              <FiSend className="h-5 w-5" />
+              <span>Post</span>
                   </>
                 )}
               </button>
             </div>
-          </form>
         </div>
-      </motion.div>
-    </AnimatePresence>
   );
 };
 

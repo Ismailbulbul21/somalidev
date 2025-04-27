@@ -1,35 +1,82 @@
 /* App.css - Global styles for the application */
 
-/* Dark mode theme */
+/* Dark mode theme with improved colors */
 body {
-  background-color: #121212;
-  color: #e1e1e1;
+  background-color: #0a0a14;
+  color: #e6e6f0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Custom scrollbar */
+/* Enhanced scrollbar for a more modern look */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: #1a1a2e;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3a3a3a;
-  border-radius: 4px;
+  background: #4338ca33;
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #6366f1;
+}
+
+/* Hide scrollbar for cleaner UI in some containers */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Utility classes */
 .blur-backdrop {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Glass effect panels */
+.glass-panel {
+  background: rgba(26, 26, 46, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  box-shadow: 0 8px 32px rgba(5, 5, 15, 0.2);
+}
+
+/* Text gradients */
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to right, #6366f1, #a855f7, #ec4899);
+}
+
+/* Button styles */
+.btn-gradient {
+  background-image: linear-gradient(to right, #4f46e5, #7e22ce);
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  background-image: linear-gradient(to right, #4338ca, #6d28d9);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px -10px rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 /* Animations */
@@ -43,10 +90,49 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
 .fade-in {
   animation: fadeIn 0.3s ease-in-out;
 }
 
 .slide-up {
   animation: slideUp 0.4s ease-out;
+}
+
+.pulse {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+/* Category pill styles */
+.category-pill {
+  background: linear-gradient(to right, rgba(79, 70, 229, 0.8), rgba(124, 58, 237, 0.8));
+  border-radius: 9999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.2s;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.category-pill:hover {
+  background: linear-gradient(to right, rgba(67, 56, 202, 0.9), rgba(109, 40, 217, 0.9));
+  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.3);
+}
+
+/* Remove text before categories in Community page */
+.community-header:before {
+  display: none !important;
+}
+
+.community-header pre,
+.community-header > *:not(h1):not(.category-section) {
+  display: none !important;
 } 

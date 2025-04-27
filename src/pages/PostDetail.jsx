@@ -32,9 +32,17 @@ const PostDetail = () => {
     setLoading(true);
     
     try {
+      console.log('Fetching post with ID:', id);
       const result = await getPost(id);
+      console.log('Post result:', result);
+      
+      // Set post data
       setPost(result);
+      
+      // Set related data
       setComments(result.comments || []);
+      
+      // Set interaction states
       setLiked(result.user_has_liked || false);
       setLikeCount(result.like_count || 0);
       setSaved(result.user_has_saved || false);
@@ -141,11 +149,17 @@ const PostDetail = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <svg className="animate-spin h-10 w-10 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
+      <div className="container mx-auto px-4 py-12">
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <svg className="animate-spin h-10 w-10 text-purple-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-400">Loading post...</p>
+            <p className="text-gray-500 text-sm mt-2">Post ID: {id}</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -170,12 +184,21 @@ const PostDetail = () => {
           </svg>
           <h2 className="mt-4 text-xl font-medium text-white">Post not found</h2>
           <p className="mt-2 text-gray-400">{error}</p>
-          <Link
-            to="/community"
-            className="mt-6 inline-block px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors"
-          >
-            Go back to Community
-          </Link>
+          <p className="mt-2 text-gray-500 text-sm">Post ID: {id}</p>
+          <div className="mt-6 space-y-2">
+            <Link
+              to="/community"
+              className="inline-block px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors"
+            >
+              Go back to Community
+            </Link>
+            <button
+              onClick={() => fetchPost()}
+              className="block mx-auto mt-2 text-purple-400 hover:text-purple-300 text-sm"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -213,12 +236,12 @@ const PostDetail = () => {
               <div className="flex items-center mb-6">
                 <Link to={`/profile/${post.profile_id}`} className="flex items-center">
                   <img 
-                    src={post.author_avatar || post.profile?.avatar_url || defaultAvatar} 
-                    alt={post.author_name || post.profile?.full_name || 'User'} 
+                    src={post.profiles?.avatar_url || defaultAvatar} 
+                    alt={post.profiles?.full_name || 'User'} 
                     className="w-12 h-12 rounded-full mr-4 object-cover"
                   />
                   <div>
-                    <h3 className="text-white font-medium">{post.author_name || post.profile?.full_name || 'Anonymous'}</h3>
+                    <h3 className="text-white font-medium">{post.profiles?.full_name || 'Anonymous'}</h3>
                     <p className="text-gray-400 text-sm">{formatDate(post.created_at)}</p>
                   </div>
                 </Link>
@@ -227,9 +250,9 @@ const PostDetail = () => {
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">{post.title}</h1>
               
               {/* Post Type Badge */}
-              {post.post_type && (
+              {post.categories && (
                 <div className="inline-block bg-purple-900/40 text-purple-200 border border-purple-700/50 px-2 py-1 rounded text-xs mb-4">
-                  {post.post_type}
+                  {post.categories.name || post.post_type}
                 </div>
               )}
               
@@ -239,10 +262,10 @@ const PostDetail = () => {
               </div>
               
               {/* Post Media */}
-              {((post.media && post.media.length > 0) || (post.images && post.images.length > 0)) && (
+              {post.media_url && (
                 <div className="mb-6">
                   <img 
-                    src={(post.media && post.media.length > 0) ? post.media[0].url : post.images[0]} 
+                    src={post.media_url} 
                     alt="Post media" 
                     className="rounded-lg max-h-96 w-auto mx-auto"
                   />

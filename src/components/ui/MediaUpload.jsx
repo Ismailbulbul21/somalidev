@@ -3,9 +3,9 @@ import { FiImage, FiX, FiUpload } from 'react-icons/fi';
 
 const MediaUpload = ({ 
   mediaFile, 
-  setMediaFile, 
   mediaPreview, 
-  setMediaPreview 
+  onFileSelect, 
+  onRemove 
 }) => {
   const fileInputRef = useRef(null);
   
@@ -28,14 +28,16 @@ const MediaUpload = ({
       return;
     }
     
-    setMediaFile(file);
-    setMediaPreview(URL.createObjectURL(file));
+    if (onFileSelect) {
+      onFileSelect(file);
+    }
   };
   
   // Reset media upload
   const handleResetMedia = () => {
-    setMediaFile(null);
-    setMediaPreview(null);
+    if (onRemove) {
+      onRemove();
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -50,7 +52,7 @@ const MediaUpload = ({
     <div className="w-full">
       {/* Media Preview */}
       {mediaPreview ? (
-        <div className="relative aspect-video rounded-md overflow-hidden bg-gray-800 border border-gray-700">
+        <div className="relative aspect-video rounded-md overflow-hidden bg-gray-800 border border-gray-700 mb-6">
           <img 
             src={mediaPreview} 
             alt="Preview" 

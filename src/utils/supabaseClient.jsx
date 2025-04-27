@@ -386,6 +386,56 @@ export const addProjectMedia = async (media) => {
     return data;
 };
 
+// Upload media for a post
+export const addPostMedia = async (postId, file, mediaType = 'image') => {
+  try {
+    if (!postId) throw new Error('Post ID is required');
+    if (!file) throw new Error('File is required');
+    
+    // Upload the file to storage
+    const filePath = `post_media/${postId}/${Date.now()}_${file.name}`;
+    const { data: uploadData, error: uploadError } = await uploadImage('post-media', filePath, file);
+    
+    if (uploadError) {
+      console.error('Error uploading post media:', uploadError);
+      throw uploadError;
+    }
+    
+    // Get the public URL
+    const publicUrl = getImageUrl('post-media', filePath);
+    
+    // Log the URL for debugging
+    console.log('Generated public URL for media:', publicUrl);
+    
+    if (!publicUrl) {
+      console.error('Could not generate public URL for media');
+      throw new Error('Media URL generation failed');
+    }
+    
+    // Add entry to post_media table
+    const { data, error } = await supabase
+      .from('post_media')
+      .insert([{
+        post_id: postId,
+        url: publicUrl,
+        media_type: mediaType
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding post media record:', error);
+      throw error;
+    }
+    
+    // Return data with the URL included
+    return { ...data, url: publicUrl };
+  } catch (error) {
+    console.error('Exception in addPostMedia:', error);
+    throw error;
+  }
+};
+
 export const addSkillToProfile = async (profileSkill) => {
     const { data, error } = await supabase
         .from('profile_skills')
@@ -618,65 +668,104 @@ export const createSpecialization = async (specialization) => {
 
 // Community Posts Functions
 
-// Get all posts with pagination, filtering and sorting
+// Get posts with pagination, filtering, and sorting
 export const getPosts = async ({
   page = 1,
   pageSize = 10,
-  category = null,
-  postType = null,
-  search = null,
+  filter = {},
   sortBy = 'created_at',
-  sortOrder = 'desc',
+  sortOrder = 'desc'
 }) => {
   try {
-    console.log('Fetching posts with params:', { page, pageSize, category, postType, search, sortBy, sortOrder });
+    console.log('Getting posts with params:', { page, pageSize, filter, sortBy, sortOrder });
     
-    // Calculate pagination
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
+    // Calculate offset based on page and pageSize
+    const offset = (page - 1) * pageSize;
     
-    // Start with the base query
+    // Start building the query
     let query = supabase
       .from('post_feed')
       .select('*', { count: 'exact' });
     
     // Apply filters
-    if (category) {
-      query = query.eq('category_id', category);
-    }
-    
-    if (postType) {
-      query = query.eq('post_type', postType);
-    }
-    
-    if (search) {
-      query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
+    if (filter) {
+      // Post type filter
+      if (filter.postType) {
+        query = query.eq('post_type', filter.postType);
+        console.log(`Filtering by post_type: ${filter.postType}`);
+      }
+      
+      // Category filter
+      if (filter.categoryId) {
+        console.log(`Filtering by category: ${filter.categoryId}`);
+        
+        // Check if it's a valid UUID
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filter.categoryId);
+        
+        if (isUuid) {
+          // If it's already a UUID, use direct match on category_id
+          query = query.eq('category_id', filter.categoryId);
+          console.log(`Using direct category filter with UUID: ${filter.categoryId}`);
+      } else {
+          // If not a UUID, try to convert it
+          try {
+            const { convertCategoryId } = await import('./categoryUtils.js');
+            const convertedId = await convertCategoryId(filter.categoryId);
+            
+            if (convertedId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convertedId)) {
+              // Use the converted UUID
+              query = query.eq('category_id', convertedId);
+              console.log(`Using converted category ID: ${convertedId}`);
+            } else {
+              // Fallback to searching by category name if conversion fails
+              const categoryName = filter.categoryId.replace(/-/g, ' ')
+                                    .split(' ')
+                                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                                    .join(' ');
+        
+        query = query.ilike('category_name', `%${categoryName}%`);
+              console.log(`Using category name filter: ${categoryName}`);
+            }
+          } catch (error) {
+            console.error('Error converting category ID:', error);
+            // Still try to perform some filtering even if conversion fails
+            const categoryName = filter.categoryId.replace(/-/g, ' ');
+            query = query.ilike('category_name', `%${categoryName}%`);
+          }
+        }
+      }
+      
+      // Search filter
+      if (filter.searchTerm && filter.searchTerm.trim()) {
+        const searchTerm = filter.searchTerm.trim();
+        query = query.or(`title.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
+        console.log(`Searching for: ${searchTerm}`);
+      }
     }
     
     // Apply sorting
-    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+    if (sortBy) {
+      const direction = sortOrder?.toLowerCase() === 'asc' ? true : false;
+      query = query.order(sortBy, { ascending: direction });
+      console.log(`Sorting by ${sortBy} ${direction ? 'ASC' : 'DESC'}`);
+    }
     
     // Apply pagination
-    query = query.range(from, to);
+    query = query.range(offset, offset + pageSize - 1);
     
-    // Execute query
+    // Execute the query
     const { data, error, count } = await query;
     
     if (error) {
       console.error('Error fetching posts:', error);
-      throw error;
+      return { data: [], count: 0, error };
     }
     
-    return {
-      data: data || [],
-      count: count || 0,
-      page,
-      pageSize,
-      totalPages: Math.ceil((count || 0) / pageSize)
-    };
+    console.log(`Successfully fetched ${data.length} posts`);
+    return { data, count, error: null };
   } catch (error) {
     console.error('Exception in getPosts:', error);
-    return { data: [], count: 0, page, pageSize, totalPages: 0 };
+    return { data: [], count: 0, error };
   }
 };
 
@@ -685,13 +774,21 @@ export const getPost = async (postId) => {
   try {
     if (!postId) throw new Error('Post ID is required');
     
-    // Increment view count
-    await supabase.rpc('increment_post_views', { post_id: postId });
+    console.log('Fetching post with ID:', postId);
     
-    // Get the post details
+    // Try to increment view count, but don't let it block the main functionality
+    viewPost(postId).catch(err => {
+      console.warn('View count increment failed:', err);
+    });
+    
+    // Get the post details directly from posts table
     const { data, error } = await supabase
-      .from('post_feed')
-      .select('*')
+      .from('posts')
+      .select(`
+        *,
+        profiles:profile_id (*),
+        categories:category_id (id, name, description)
+      `)
       .eq('id', postId)
       .single();
     
@@ -715,9 +812,22 @@ export const getPost = async (postId) => {
       console.error('Error fetching comments:', commentsError);
     }
     
+    // Get like count
+    const { count: likeCount, error: likeError } = await supabase
+      .from('post_likes')
+      .select('*', { count: 'exact' })
+      .eq('post_id', postId);
+      
+    if (likeError) {
+      console.warn('Error fetching like count:', likeError);
+    }
+    
+    console.log('Successfully fetched post:', data?.id);
+    
     return {
       ...data,
-      comments: comments || []
+      comments: comments || [],
+      like_count: likeCount || 0
     };
   } catch (error) {
     console.error('Exception in getPost:', error);
@@ -725,77 +835,274 @@ export const getPost = async (postId) => {
   }
 };
 
-// Create a new post
+// Function to create a post
 export const createPost = async (post) => {
   try {
-    console.log('createPost received:', post);
+    console.log('Creating post:', post);
     
-    // Handle FormData objects
     let postData = {};
+    let mediaFile = null;
     
+    // Check if post is FormData
     if (post instanceof FormData) {
-      // Extract data from FormData
-      console.log('Post is FormData, extracting values...');
+      const title = post.get('title');
+      const content = post.get('content');
+      const post_type = post.get('post_type');
+      let category_id = post.get('category_id');
+      const tagsString = post.get('tags');
+      
+      // Extract media file if present
+      mediaFile = post.get('media');
+      
+      console.log('Extracted from FormData:', { 
+        title, content, post_type, category_id, tagsString,
+        hasMedia: !!mediaFile
+      });
+      
+      if (!title) throw new Error('Post title is required');
+      if (!content) throw new Error('Post content is required');
+      
       postData = {
-        title: post.get('title'),
-        content: post.get('content'),
-        post_type: post.get('post_type'),
-        category_id: post.get('category_id'),
-        profile_id: supabase.auth.getUser().then(({ data }) => data.user.id) // This won't work - async
+        title,
+        content,
+        post_type: post_type || 'discussion'
       };
       
-      // Get the current user and set profile_id
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('You must be logged in to create a post');
-      
-      // Set profile_id to the user's ID
-      postData.profile_id = user.id;
-      
-      // Handle tags if present
-      const tags = post.get('tags');
-      if (tags) {
-        try {
-          postData.tags = JSON.parse(tags);
-        } catch (e) {
-          console.error('Error parsing tags:', e);
+      // Handle category ID - ensure it's a valid UUID
+      if (category_id) {
+        // Check if already a valid UUID
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category_id)) {
+          console.log(`Category ID is a valid UUID: ${category_id}`);
+          
+          // Verify this UUID exists in the categories table
+          const { data: categoryExists } = await supabase
+            .from('categories')
+            .select('id, name')
+            .eq('id', category_id)
+            .single();
+          
+          if (categoryExists) {
+            console.log(`Verified category exists: ${categoryExists.name} (${categoryExists.id})`);
+            postData.category_id = category_id;
+          } else {
+            console.log('UUID not found in categories table, finding alternative');
+            const { data: altCategory } = await supabase
+              .from('categories')
+              .select('id, name')
+              .limit(1)
+              .single();
+            
+            if (altCategory) {
+              category_id = altCategory.id;
+              console.log(`Using alternative category ID: ${altCategory.name} (${category_id})`);
+              postData.category_id = category_id;
+            }
+          }
+        } else {
+          console.log(`Category ID is not a UUID, converting: ${category_id}`);
+          
+          // First try special case handling for common categories
+          let matchingCategoryName = null;
+          const normalizedCategoryId = category_id.toLowerCase().replace(/-/g, ' ');
+          
+          if (normalizedCategoryId.includes('web')) {
+            matchingCategoryName = 'Web Development';
+          } else if (normalizedCategoryId.includes('mobile')) {
+            matchingCategoryName = 'Mobile Development';
+          } else if (normalizedCategoryId.includes('ui') || normalizedCategoryId.includes('ux') || normalizedCategoryId.includes('design')) {
+            matchingCategoryName = 'UI/UX Design';
+          }
+          
+          if (matchingCategoryName) {
+            console.log(`Special case match: "${normalizedCategoryId}" → "${matchingCategoryName}"`);
+            const { data: specialCategory } = await supabase
+              .from('categories')
+              .select('id, name')
+              .ilike('name', matchingCategoryName)
+              .limit(1);
+              
+            if (specialCategory && specialCategory.length > 0) {
+              category_id = specialCategory[0].id;
+              console.log(`Found special category: ${specialCategory[0].name} (${category_id})`);
+              postData.category_id = category_id;
+            }
+          }
+          
+          // If special case didn't find a match, try direct lookup
+          if (!postData.category_id) {
+            const { data: categoryByName } = await supabase
+              .from('categories')
+              .select('id, name')
+              .or(`name.ilike.%${normalizedCategoryId}%,slug.eq.${category_id}`)
+              .limit(1);
+            
+            if (categoryByName && categoryByName.length > 0) {
+              category_id = categoryByName[0].id;
+              console.log(`Found category by name: ${categoryByName[0].name} (${category_id})`);
+              postData.category_id = category_id;
+            } else {
+              // If direct lookup fails, try the conversion utility
+              try {
+                const { convertCategoryId } = await import('./categoryUtils.js');
+                const convertedId = await convertCategoryId(category_id);
+                
+                if (convertedId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convertedId)) {
+                  category_id = convertedId;
+                  console.log(`Converted to valid UUID: ${category_id}`);
+                  postData.category_id = category_id;
+                } else if (convertedId) {
+                  // If conversion returned something but not a UUID, try one more direct lookup
+                  const { data: convertedCategory } = await supabase
+                    .from('categories')
+                    .select('id, name')
+                    .or(`name.ilike.%${convertedId.replace(/-/g, ' ')}%,id.eq.${convertedId}`)
+                    .limit(1);
+                    
+                  if (convertedCategory && convertedCategory.length > 0) {
+                    category_id = convertedCategory[0].id;
+                    console.log(`Found category from converted ID: ${convertedCategory[0].name} (${category_id})`);
+                    postData.category_id = category_id;
+                  }
+                }
+              } catch (convError) {
+                console.error('Error during category conversion:', convError);
+              }
+            }
+          }
+          
+          // If all attempts fail, get any valid category as fallback
+          if (!postData.category_id) {
+            console.log('All conversion attempts failed, using fallback category');
+            const { data: fallbackCategory } = await supabase
+              .from('categories')
+              .select('id, name')
+              .limit(1)
+              .single();
+            
+            if (fallbackCategory) {
+              category_id = fallbackCategory.id;
+              console.log(`Using fallback category: ${fallbackCategory.name} (${category_id})`);
+              postData.category_id = category_id;
+    } else {
+              console.log('No fallback category found, setting to null');
+              postData.category_id = null;
+            }
+          }
+        }
+      } else {
+        console.log('No category ID provided, finding a default');
+        // No category provided, get a default one
+        const { data: defaultCategory } = await supabase
+          .from('categories')
+          .select('id, name')
+          .limit(1)
+          .single();
+        
+        if (defaultCategory) {
+          postData.category_id = defaultCategory.id;
+          console.log(`Using default category: ${defaultCategory.name} (${defaultCategory.id})`);
         }
       }
       
-      // Log the extracted data
-      console.log('Extracted data from FormData:', postData);
+      // Process tags if present
+      if (tagsString) {
+        try {
+          postData.tags = JSON.parse(tagsString);
+        } catch (e) {
+          console.error('Error parsing tags JSON:', e);
+        }
+      }
     } else {
-      // If not FormData, use as is
+      // If it's not FormData, use it directly
       postData = { ...post };
       
-      // If profile_id is not provided, set it to the current user's ID
-      if (!postData.profile_id) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('You must be logged in to create a post');
-        postData.profile_id = user.id;
+      // Ensure category_id is a valid UUID if provided
+      if (postData.category_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postData.category_id)) {
+        try {
+          console.log(`Converting non-UUID category_id: ${postData.category_id}`);
+          const { convertCategoryId } = await import('./categoryUtils.js');
+          const convertedId = await convertCategoryId(postData.category_id);
+          
+          if (convertedId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convertedId)) {
+            postData.category_id = convertedId;
+            console.log(`Converted to UUID: ${convertedId}`);
+          } else {
+            // Get any valid category
+            const { data: anyCategory } = await supabase
+              .from('categories')
+              .select('id, name')
+              .limit(1)
+              .single();
+              
+            if (anyCategory) {
+              postData.category_id = anyCategory.id;
+              console.log(`Using first available category: ${anyCategory.name} (${anyCategory.id})`);
+            }
+          }
+        } catch (error) {
+          console.error('Error converting category ID in direct post data:', error);
+        }
       }
     }
     
-    // Validate required fields
-    if (!postData.title) throw new Error('Post title is required');
-    if (!postData.content) throw new Error('Post content is required');
-    if (!postData.post_type) throw new Error('Post type is required');
+    // Set the profile ID to the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    postData.profile_id = user.id;
     
-    // Check if category_id is a non-UUID string (from our fallback categories)
-    if (postData.category_id && !postData.category_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      console.log('Using a non-UUID category ID, setting to null for database compatibility');
-      postData.category_id = null; // Set to null to avoid database constraint errors
-    }
+    console.log('Final post data:', postData);
     
     // Insert the post
     const { data, error } = await supabase
       .from('posts')
       .insert([postData])
-      .select()
+      .select(`
+        *,
+        profiles:profile_id (*),
+        categories:category_id (*)
+      `)
       .single();
     
     if (error) {
       console.error('Error creating post:', error);
       throw error;
+    }
+    
+    console.log('Post created successfully:', data);
+    
+    // Handle media upload if file was provided
+    if (mediaFile) {
+      try {
+        console.log('Uploading media file for post:', data.id);
+        const mediaData = await addPostMedia(data.id, mediaFile);
+        console.log('Media upload successful:', mediaData);
+        
+        // Update the post with the media URL
+        if (mediaData && mediaData.url) {
+          const { data: updatedPost, error: updateError } = await supabase
+            .from('posts')
+            .update({ media_url: mediaData.url })
+            .eq('id', data.id)
+            .select(`
+              *,
+              profiles:profile_id (*),
+              categories:category_id (*)
+            `)
+            .single();
+            
+          if (updateError) {
+            console.error('Error updating post with media URL:', updateError);
+            // Still return original data with the media URL added
+            return { ...data, media_url: mediaData.url };
+          } else {
+            console.log('Post updated with media URL:', updatedPost);
+            // Return the updated post with the media URL
+            return updatedPost;
+          }
+        }
+      } catch (mediaError) {
+        console.error('Error uploading media for post:', mediaError);
+        // Continue even if media upload fails - post was created successfully
+      }
     }
     
     return data;
@@ -805,59 +1112,140 @@ export const createPost = async (post) => {
   }
 };
 
-// Update an existing post
+// Update a post
 export const updatePost = async (postId, updates) => {
   try {
     if (!postId) throw new Error('Post ID is required');
     
-    console.log('updatePost received:', { postId, updates });
+    console.log('Updating post with ID:', postId);
+    console.log('Update data:', updates);
     
-    // Handle FormData objects
     let updateData = {};
+    let mediaFile = null;
     
+    // Handle FormData
     if (updates instanceof FormData) {
-      // Extract data from FormData
-      console.log('Updates is FormData, extracting values...');
-      updateData = {
-        title: updates.get('title'),
-        content: updates.get('content'),
-        post_type: updates.get('post_type'),
-        category_id: updates.get('category_id')
-      };
+      const title = updates.get('title');
+      const content = updates.get('content');
+      const post_type = updates.get('post_type');
+      let category_id = updates.get('category_id');
+      const tagsString = updates.get('tags');
       
-      // Handle tags if present
-      const tags = updates.get('tags');
-      if (tags) {
-        try {
-          updateData.tags = JSON.parse(tags);
-        } catch (e) {
-          console.error('Error parsing tags:', e);
+      // Extract media file if present
+      mediaFile = updates.get('media');
+      
+      console.log('Extracted from FormData:', { 
+        title, content, post_type, category_id, tagsString,
+        hasMedia: !!mediaFile
+      });
+      
+      if (title) updateData.title = title;
+      if (content) updateData.content = content;
+      if (post_type) updateData.post_type = post_type;
+      
+      // Handle category ID - ensure it's a valid UUID
+      if (category_id) {
+        // Check if already a valid UUID
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category_id)) {
+          console.log(`Category ID is not a UUID, converting: ${category_id}`);
+          try {
+            // Import the utility function directly
+            const { convertCategoryId } = await import('./categoryUtils.js');
+            category_id = await convertCategoryId(category_id);
+            console.log(`Converted category ID: ${category_id}`);
+          } catch (error) {
+            console.error('Error converting category ID:', error);
+            // If conversion fails, try to get a default category ID from database
+            try {
+              const { data: defaultCategory } = await supabase
+                .from('categories')
+                .select('id')
+                .limit(1)
+                .single();
+              
+              if (defaultCategory) {
+                category_id = defaultCategory.id;
+                console.log(`Using default category ID: ${category_id}`);
+              } else {
+                category_id = null;
+              }
+            } catch (innerError) {
+              console.error('Error getting default category:', innerError);
+              category_id = null;
+            }
+          }
+        } else {
+          console.log('Category ID is already a valid UUID');
         }
+        
+        updateData.category_id = category_id;
       }
       
-      // Remove undefined values
-      Object.keys(updateData).forEach(key => 
-        updateData[key] === undefined && delete updateData[key]
-      );
-      
-      // Log the extracted data
-      console.log('Extracted data from FormData:', updateData);
+      // Handle tags
+      if (tagsString) {
+        try {
+          const tags = JSON.parse(tagsString);
+          if (Array.isArray(tags)) {
+            updateData.tags = tags;
+          }
+        } catch (error) {
+          console.error('Error parsing tags:', error);
+        }
+      }
     } else {
-      // If not FormData, use as is
+      // Handle regular object
       updateData = { ...updates };
     }
+    
+    // Log the final data object before update
+    console.log('Final update data:', updateData);
     
     // Update the post
     const { data, error } = await supabase
       .from('posts')
       .update(updateData)
       .eq('id', postId)
-      .select()
+      .select(`
+        *,
+        profiles!posts_profile_id_fkey(id, full_name, avatar_url, title),
+        categories(id, name)
+      `)
       .single();
     
     if (error) {
       console.error('Error updating post:', error);
       throw error;
+    }
+    
+    console.log('Post updated successfully:', data);
+    
+    // Handle media upload if file was provided
+    if (mediaFile) {
+      try {
+        console.log('Uploading media file for updated post:', postId);
+        const mediaData = await addPostMedia(postId, mediaFile);
+        console.log('Media upload successful:', mediaData);
+        
+        // Update the post with the media URL
+        if (mediaData && mediaData.url) {
+          const { data: updatedPost, error: updateError } = await supabase
+            .from('posts')
+            .update({ media_url: mediaData.url })
+            .eq('id', postId)
+            .select();
+            
+          if (updateError) {
+            console.error('Error updating post with media URL:', updateError);
+          } else {
+            console.log('Post updated with media URL:', updatedPost);
+            // Return the updated post with the media URL
+            return { ...data, media_url: mediaData.url };
+          }
+        }
+      } catch (mediaError) {
+        console.error('Error uploading media for post:', mediaError);
+        // Continue even if media upload fails - post was updated successfully
+      }
     }
     
     return data;
@@ -1235,47 +1623,6 @@ export const unsavePost = async (postId) => {
     return { saved: false };
   } catch (error) {
     console.error('Exception in unsavePost:', error);
-    throw error;
-  }
-};
-
-// Upload media for a post
-export const addPostMedia = async (postId, file, mediaType = 'image') => {
-  try {
-    if (!postId) throw new Error('Post ID is required');
-    if (!file) throw new Error('File is required');
-    
-    // Upload the file to storage
-    const filePath = `post_media/${postId}/${Date.now()}_${file.name}`;
-    const { data: uploadData, error: uploadError } = await uploadImage('post-media', filePath, file);
-    
-    if (uploadError) {
-      console.error('Error uploading post media:', uploadError);
-      throw uploadError;
-    }
-    
-    // Get the public URL
-    const url = getImageUrl('post-media', filePath);
-    
-    // Add entry to post_media table
-    const { data, error } = await supabase
-      .from('post_media')
-      .insert([{
-        post_id: postId,
-        url,
-        media_type: mediaType
-      }])
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error adding post media record:', error);
-      throw error;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Exception in addPostMedia:', error);
     throw error;
   }
 };
@@ -1669,5 +2016,40 @@ export const haveExchangedMessages = async (userId1, userId2) => {
   } catch (error) {
     console.error('Error checking message exchange:', error);
     return false;
+  }
+};
+
+// Safely increment post view count
+export const viewPost = async (postId) => {
+  if (!postId) return { success: false };
+  
+  try {
+    // Try to call the RPC function to increment views
+    await supabase.rpc('increment_post_views', { post_id: postId });
+    return { success: true };
+  } catch (error) {
+    console.warn('Failed to increment post view count:', error);
+    
+    // Try a fallback direct update
+    try {
+      const { data: post } = await supabase
+        .from('posts')
+        .select('view_count')
+        .eq('id', postId)
+        .single();
+      
+      if (post) {
+        const newViewCount = (post.view_count || 0) + 1;
+        await supabase
+          .from('posts')
+          .update({ view_count: newViewCount })
+          .eq('id', postId);
+      }
+      
+      return { success: true };
+    } catch (fallbackError) {
+      console.warn('Fallback view count increment also failed:', fallbackError);
+      return { success: false, error: fallbackError };
+    }
   }
 };
