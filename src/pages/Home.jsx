@@ -43,7 +43,7 @@ const Home = () => {
       const topRatedData = await getProfiles([], {
         sortBy: 'average_rating',
         sortOrder: 'desc',
-        limit: 10 // Fetch more than we need so we can sort properly
+        limit: 100 // Changed from 10 to 100 for testing
       });
       
       // Only include profiles with ratings
