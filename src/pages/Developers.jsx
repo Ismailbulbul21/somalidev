@@ -122,8 +122,14 @@ const Developers = () => {
     // Sort by rating (highest first) for all results
     results.sort((a, b) => {
       // Handle cases where rating might be missing
-      const ratingA = a.average_rating || 0;
-      const ratingB = b.average_rating || 0;
+      const ratingA = Number(a.average_rating || 0);
+      const ratingB = Number(b.average_rating || 0);
+      
+      // If ratings are equal, sort by number of ratings (higher count first)
+      if (ratingA === ratingB) {
+        return (b.rating_count || 0) - (a.rating_count || 0);
+      }
+      
       return ratingB - ratingA;
     });
     
