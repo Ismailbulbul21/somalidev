@@ -39,6 +39,7 @@ const SOMALIA_CITIES = [
   "Gabiley",
   "Hudur",
   "Baki",
+  "jigjiga",
 ];
 
 const SOMALIA_REGIONS = [
